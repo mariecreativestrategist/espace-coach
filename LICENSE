@@ -1,25 +1,40 @@
 Copyright (c) 2026 Marie — CreativeStrategist. Tous droits réservés.
 
-Ce dépôt et l'ensemble de son contenu (code source, design, documentation)
-sont la propriété exclusive de l'auteur. Le fait que ce dépôt soit visible
-publiquement sur GitHub ne constitue pas une autorisation d'utilisation.
+Ce dépôt est visible publiquement sur GitHub à titre de vitrine. Cette
+visibilité ne constitue en elle-même aucune autorisation d'usage : par
+défaut, aucun droit n'est concédé à qui n'a pas obtenu l'accès dans les
+conditions décrites ci-dessous.
 
-Sauf accord écrit préalable de l'auteur, toute personne consultant ce dépôt
-n'est autorisée qu'à le lire. Sont notamment interdits, sans autorisation
-expresse :
+## Utilisateurs ayant obtenu une licence (achat, formation, accord écrit)
 
-- la copie, la redistribution ou la republication de tout ou partie du code
-  ou de la documentation, sous forme originale ou modifiée ;
-- l'utilisation de ce code, en tout ou partie, dans un projet personnel,
-  commercial ou destiné à des tiers ;
-- la revente, la sous-licence ou la mise à disposition de ce projet
-  (gratuitement ou contre paiement) à des tiers ;
-- la suppression ou la modification de cette notice de licence.
+Toute personne ayant légitimement obtenu ce projet (achat du template,
+formation, accord de licence individuel) est autorisée à :
 
-Les personnes ayant obtenu un accès légitime à ce projet (achat, formation,
-accord de licence individuel) disposent des droits d'usage précisés dans
-les conditions qui leur ont été communiquées séparément. En l'absence d'un
-tel accord écrit, aucun droit n'est concédé.
+- utiliser, copier et modifier le code pour construire et exploiter
+  son propre site ou produit, y compris à des fins commerciales ;
+- déployer autant de projets personnels qu'elle le souhaite à partir
+  de ce code, pour son propre usage ou celui de ses clients.
+
+Cette autorisation est **incessible et non redistribuable**. Il est
+interdit, sans accord écrit distinct de l'auteur :
+
+- de revendre, sous-licencier, donner ou partager ce projet — en l'état
+  ou modifié, en tout ou partie — à toute autre personne ou entité ;
+- de republier ce code (dépôt public ou privé, marketplace de templates,
+  pack de ressources, etc.) permettant à des tiers non-licenciés d'y
+  accéder ou de l'obtenir ;
+- de retirer ou modifier cette notice de licence dans les copies utilisées.
+
+Chaque nouvelle personne souhaitant utiliser ce projet doit obtenir sa
+propre autorisation directement auprès de l'auteur.
+
+## Toute autre personne
+
+En l'absence d'un accord tel que décrit ci-dessus, seule la consultation
+du code sur ce dépôt public est autorisée. Aucun droit de copie,
+d'utilisation, de modification ou de redistribution n'est accordé.
+
+## Garantie
 
 CE LOGICIEL EST FOURNI "EN L'ÉTAT", SANS GARANTIE D'AUCUNE SORTE, EXPRESSE
 OU IMPLICITE. EN AUCUN CAS L'AUTEUR NE POURRA ÊTRE TENU RESPONSABLE DE TOUT
