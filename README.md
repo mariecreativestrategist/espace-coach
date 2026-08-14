@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CoachOS
 
-## Getting Started
+Plateforme de gestion pour coachs sportifs indépendants : un **espace admin** pour le coach (clients, planning, exercices, facturation…) et un **espace client** pour chaque personne coachée, connectés à la même base de données.
 
-First, run the development server:
+- **Frontend** : Next.js (App Router) · TypeScript · Tailwind CSS v4
+- **Backend** : Supabase (Postgres, Auth, Storage)
+- **Déploiement** : Vercel
+
+> Pour rebrander le design, adapter la navigation ou brancher tes propres données, voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
+
+---
+
+## 1. Prérequis
+
+- [Node.js](https://nodejs.org/) 20 ou plus récent
+- Un compte [Supabase](https://supabase.com/) (gratuit) pour la base de données et l'authentification
+- (Optionnel, pour la facturation par email) un compte [Resend](https://resend.com/)
+
+## 2. Installation
+
+```bash
+git clone <url-du-repo>
+cd <dossier-du-projet>
+npm install
+```
+
+## 3. Configurer Supabase
+
+1. Crée un nouveau projet sur [supabase.com](https://supabase.com/dashboard).
+2. Dans **Project Settings → API**, récupère :
+   - `Project URL`
+   - la clé `anon public`
+   - la clé `service_role` (secrète — ne jamais l'exposer côté client)
+3. Duplique le fichier d'exemple des variables d'environnement :
+
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+4. Remplis `.env.local` :
+
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxxx
+   SUPABASE_SERVICE_ROLE_KEY=xxxxx
+   RESEND_API_KEY=xxxxx
+   ```
+
+5. Applique le schéma de base de données. Le plus simple est de coller le contenu de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) dans l'éditeur SQL du dashboard Supabase (**SQL Editor → New query**), puis de l'exécuter.
+
+   Si tu utilises la [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), tu peux aussi faire :
+
+   ```bash
+   supabase link --project-ref <ton-project-ref>
+   supabase db push
+   ```
+
+Ce script crée les 16 tables du modèle de données (coachs, clients, séances, exercices, RDV, messages, factures…) avec la Row Level Security déjà configurée : chaque coach ne voit que ses propres clients, et chaque client ne voit que ses propres données.
+
+## 4. Lancer le projet en local
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvre [http://localhost:3000](http://localhost:3000). Tant que l'authentification n'est pas mise en place côté compte, la page d'accueil propose un accès direct aux deux espaces :
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Espace Admin** → `/admin/dashboard`
+- **Espace Client** → `/client/dashboard`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ces deux espaces fonctionnent aujourd'hui sur des **données de démonstration** (voir `src/lib/mock/`), ce qui permet de voir tout le design et toutes les interactions sans avoir de compte Supabase configuré. Pour les brancher sur de vraies données, voir la section correspondante dans [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
 
-## Learn More
+## 5. Structure du projet
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    admin/          → les 8 pages de l'espace coach (Dashboard, Clients, Planning…)
+    client/          → les 8 pages de l'espace client (Tableau de bord, Programme…)
+    globals.css      → design system partagé (couleurs, composants)
+  components/shared/  → Sidebar, Topbar, Modal, Toast… composants réutilisés partout
+  config/              → définition des menus de navigation admin / client
+  lib/
+    mock/              → données de démonstration (à remplacer par Supabase)
+    supabase/          → clients Supabase (browser / server / middleware) + types
+  styles/client.css     → particularités visuelles de l'espace client
+supabase/migrations/    → schéma SQL (tables + RLS) à appliquer sur ton projet Supabase
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 6. Déploiement (Vercel)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Pousse le projet sur GitHub.
+2. Importe le repo sur [vercel.com/new](https://vercel.com/new).
+3. Renseigne les mêmes variables d'environnement que dans `.env.local` (Project Settings → Environment Variables).
+4. Déploie.
 
-## Deploy on Vercel
+## 7. Prochaines étapes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ce socle couvre le design complet des deux espaces avec des données de démonstration. Les étapes suivantes pour un projet en production :
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Authentification réelle (Supabase Auth, deux parcours coach / client)
+2. Remplacer les données de `src/lib/mock/` par de vraies requêtes Supabase
+3. Upload de fichiers (photos, PDF, médias d'exercices) via Supabase Storage
+4. Emails transactionnels (Resend) pour les notifications importantes
+
+---
+
+Cahier des charges complet dans [`docs/CAHIER-DES-CHARGES.md`](docs/CAHIER-DES-CHARGES.md).

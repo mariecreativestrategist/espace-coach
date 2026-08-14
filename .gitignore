@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -39,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# maquettes de référence (design uniquement, pas nécessaires au projet)
+/espace-coach-admin.html
+/espace-client.html
+
+# config Claude Code locale (permissions propres à chaque poste)
+.claude/settings.local.json
