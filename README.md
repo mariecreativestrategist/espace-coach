@@ -103,6 +103,10 @@ Ce socle couvre le design complet des deux espaces avec des données de démonst
 3. Upload de fichiers (photos, PDF, médias d'exercices) via Supabase Storage
 4. Emails transactionnels (Resend) pour les notifications importantes
 
+## 8. Licence
+
+Ce projet est distribué sous licence propriétaire — voir [`LICENSE`](LICENSE). Le dépôt est visible publiquement mais son usage est soumis à autorisation ; contacte marie.creativestrategist@gmail.com pour toute demande.
+
 ---
 
 Cahier des charges complet dans [`docs/CAHIER-DES-CHARGES.md`](docs/CAHIER-DES-CHARGES.md).
