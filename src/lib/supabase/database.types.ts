@@ -53,6 +53,7 @@ export interface Database {
           poids_depart: number | null;
           poids_actuel: number | null;
           poids_objectif: number | null;
+          mensuration_champs_actifs: string[];
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["clients"]["Row"]> & {

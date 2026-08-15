@@ -4,25 +4,19 @@ import { useState } from "react";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import { formatDateShort, type Client, type MeasurementField } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase/storage";
 
 export function MensurationsTab({
   client,
   onUpdate,
   measurementCatalog,
   onAddCustomField,
-  nextMeasureId,
-  onMeasureIdUsed,
-  nextPhotoId,
-  onPhotoIdUsed,
 }: {
   client: Client;
   onUpdate: (updater: (c: Client) => Client) => void;
   measurementCatalog: MeasurementField[];
   onAddCustomField: (field: MeasurementField) => void;
-  nextMeasureId: number;
-  onMeasureIdUsed: () => void;
-  nextPhotoId: number;
-  onPhotoIdUsed: () => void;
 }) {
   const showToast = useToast();
   const fields = client.measurementFields.map((key) => measurementCatalog.find((f) => f.key === key)).filter(Boolean) as MeasurementField[];
@@ -30,6 +24,7 @@ export function MensurationsTab({
   const [measureOpen, setMeasureOpen] = useState(false);
   const [measureDate, setMeasureDate] = useState("");
   const [measureValues, setMeasureValues] = useState<Record<string, string>>({});
+  const [savingMeasure, setSavingMeasure] = useState(false);
 
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [checkedKeys, setCheckedKeys] = useState<string[]>(client.measurementFields);
@@ -37,6 +32,7 @@ export function MensurationsTab({
   const [newFieldUnit, setNewFieldUnit] = useState("");
 
   const [photoFiles, setPhotoFiles] = useState<FileList | null>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   function openMeasureModal() {
     setMeasureDate(new Date().toISOString().split("T")[0]!);
@@ -44,21 +40,47 @@ export function MensurationsTab({
     setMeasureOpen(true);
   }
 
-  function submitMeasure(e: React.FormEvent) {
+  async function submitMeasure(e: React.FormEvent) {
     e.preventDefault();
     const values: Record<string, string> = {};
     for (const f of fields) {
       const v = measureValues[f.key];
       if (v !== undefined && v !== "") values[f.key] = v;
     }
-    const id = nextMeasureId;
-    onUpdate((c) => ({ ...c, measurements: [{ id, date: formatDateShort(measureDate), values }, ...c.measurements] }));
-    onMeasureIdUsed();
+
+    if (!isSupabaseConfigured) {
+      onUpdate((c) => ({ ...c, measurements: [{ id: crypto.randomUUID(), date: formatDateShort(measureDate), values }, ...c.measurements] }));
+      setMeasureOpen(false);
+      showToast("Mesure ajoutée");
+      return;
+    }
+
+    setSavingMeasure(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("measurements")
+      .insert({ client_id: client.id, date: measureDate, valeurs: values })
+      .select()
+      .single();
+    setSavingMeasure(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter la mesure.");
+      return;
+    }
+    onUpdate((c) => ({ ...c, measurements: [{ id: data.id, date: formatDateShort(data.date), values: data.valeurs as Record<string, number | string> }, ...c.measurements] }));
     setMeasureOpen(false);
     showToast("Mesure ajoutée");
   }
 
-  function deleteMeasurement(id: number) {
+  async function deleteMeasurement(id: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("measurements").delete().eq("id", id);
+      if (error) {
+        showToast("Impossible de supprimer la mesure.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, measurements: c.measurements.filter((m) => m.id !== id) }));
     showToast("Mesure supprimée");
   }
@@ -72,38 +94,109 @@ export function MensurationsTab({
     setCheckedKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
-  function addCustomField() {
+  async function addCustomField() {
     const name = newFieldName.trim();
     if (!name) return;
     const unit = newFieldUnit.trim() || "—";
+
+    if (!isSupabaseConfigured) {
+      const key = `custom_${Date.now()}`;
+      onAddCustomField({ key, label: name, unit });
+      setCheckedKeys((prev) => [...prev, key]);
+      setNewFieldName("");
+      setNewFieldUnit("");
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
     const key = `custom_${Date.now()}`;
+    const { error } = await supabase.from("measurement_fields").insert({ coach_id: user.id, cle: key, libelle: name, unite: unit });
+    if (error) {
+      showToast("Impossible d'ajouter ce champ.");
+      return;
+    }
     onAddCustomField({ key, label: name, unit });
     setCheckedKeys((prev) => [...prev, key]);
     setNewFieldName("");
     setNewFieldUnit("");
   }
 
-  function saveFieldsSelection() {
+  async function saveFieldsSelection() {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("clients").update({ mensuration_champs_actifs: checkedKeys }).eq("id", client.id);
+      if (error) {
+        showToast("Impossible d'enregistrer la sélection.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, measurementFields: checkedKeys }));
     setFieldsOpen(false);
     showToast("Champs de mensuration mis à jour");
   }
 
-  function addPhotos() {
+  async function addPhotos() {
     if (!photoFiles || photoFiles.length === 0) {
       showToast("Sélectionnez au moins une photo");
       return;
     }
     const dateLabel = formatDateShort(new Date().toISOString().split("T")[0]!);
-    let id = nextPhotoId;
-    const newPhotos = Array.from(photoFiles).map((f) => ({ id: id++, name: f.name, date: dateLabel }));
+
+    if (!isSupabaseConfigured) {
+      const newPhotos = Array.from(photoFiles).map((f) => ({ id: crypto.randomUUID(), name: f.name, date: dateLabel }));
+      onUpdate((c) => ({ ...c, photos: [...c.photos, ...newPhotos] }));
+      setPhotoFiles(null);
+      showToast("Photo(s) ajoutée(s)");
+      return;
+    }
+
+    setUploadingPhotos(true);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setUploadingPhotos(false);
+      return;
+    }
+
+    const newPhotos: { id: string; name: string; date: string }[] = [];
+    for (const file of Array.from(photoFiles)) {
+      const path = `client-photos/${user.id}/${client.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file);
+      if (uploadError) continue;
+      const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      const { data, error } = await supabase
+        .from("client_photos")
+        .insert({ client_id: client.id, nom_fichier: file.name, url: publicUrl.publicUrl, auteur: "coach" })
+        .select()
+        .single();
+      if (!error && data) newPhotos.push({ id: data.id, name: data.nom_fichier, date: dateLabel });
+    }
+    setUploadingPhotos(false);
+
+    if (newPhotos.length === 0) {
+      showToast("Échec de l'envoi des photos.");
+      return;
+    }
     onUpdate((c) => ({ ...c, photos: [...c.photos, ...newPhotos] }));
-    for (let i = 0; i < newPhotos.length; i++) onPhotoIdUsed();
     setPhotoFiles(null);
     showToast("Photo(s) ajoutée(s)");
   }
 
-  function deletePhoto(id: number) {
+  async function deletePhoto(id: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("client_photos").delete().eq("id", id);
+      if (error) {
+        showToast("Impossible de supprimer la photo.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, photos: c.photos.filter((p) => p.id !== id) }));
     showToast("Photo supprimée");
   }
@@ -197,8 +290,8 @@ export function MensurationsTab({
               style={{ flex: 1, minWidth: 200, background: "var(--bg-surface-2)", border: "1px solid var(--border-subtle)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 12.5 }}
               onChange={(e) => setPhotoFiles(e.target.files)}
             />
-            <button className="btn btn-primary btn-sm" type="button" onClick={addPhotos}>
-              Ajouter des photos
+            <button className="btn btn-primary btn-sm" type="button" onClick={addPhotos} disabled={uploadingPhotos}>
+              {uploadingPhotos ? "Envoi…" : "Ajouter des photos"}
             </button>
           </div>
         </div>
@@ -236,8 +329,8 @@ export function MensurationsTab({
             <button type="button" className="btn btn-ghost" onClick={() => setMeasureOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter la mesure
+            <button type="submit" className="btn btn-primary" disabled={savingMeasure}>
+              {savingMeasure ? "Ajout…" : "Ajouter la mesure"}
             </button>
           </div>
         </form>

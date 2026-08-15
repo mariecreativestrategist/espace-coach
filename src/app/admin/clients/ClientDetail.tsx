@@ -26,8 +26,6 @@ export function ClientDetail({
   onMessage,
   measurementCatalog,
   onAddCustomField,
-  counters,
-  bumpCounter,
 }: {
   client: Client;
   onUpdate: (updater: (c: Client) => Client) => void;
@@ -36,8 +34,6 @@ export function ClientDetail({
   onMessage: () => void;
   measurementCatalog: MeasurementField[];
   onAddCustomField: (field: MeasurementField) => void;
-  counters: { goal: number; workout: number; measure: number; photo: number; question: number };
-  bumpCounter: (key: keyof typeof counters) => void;
 }) {
   const [tab, setTab] = useState("apercu");
 
@@ -85,28 +81,18 @@ export function ClientDetail({
 
       <div>
         {tab === "apercu" && <ApercuTab client={client} onUpdate={onUpdate} />}
-        {tab === "sante" && (
-          <SanteTab client={client} onUpdate={onUpdate} nextQuestionId={counters.question} onQuestionIdUsed={() => bumpCounter("question")} />
-        )}
+        {tab === "sante" && <SanteTab client={client} onUpdate={onUpdate} />}
         {tab === "mensurations" && (
           <MensurationsTab
             client={client}
             onUpdate={onUpdate}
             measurementCatalog={measurementCatalog}
             onAddCustomField={onAddCustomField}
-            nextMeasureId={counters.measure}
-            onMeasureIdUsed={() => bumpCounter("measure")}
-            nextPhotoId={counters.photo}
-            onPhotoIdUsed={() => bumpCounter("photo")}
           />
         )}
-        {tab === "objectifs" && (
-          <ObjectifsTab client={client} onUpdate={onUpdate} nextGoalId={counters.goal} onGoalIdUsed={() => bumpCounter("goal")} />
-        )}
+        {tab === "objectifs" && <ObjectifsTab client={client} onUpdate={onUpdate} />}
         {tab === "alimentation" && <AlimentationTab client={client} onUpdate={onUpdate} />}
-        {tab === "seances" && (
-          <SeancesTab client={client} onUpdate={onUpdate} nextWorkoutId={counters.workout} onWorkoutIdUsed={() => bumpCounter("workout")} />
-        )}
+        {tab === "seances" && <SeancesTab client={client} onUpdate={onUpdate} />}
       </div>
     </>
   );

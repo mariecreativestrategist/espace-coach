@@ -1,5 +1,5 @@
 -- CoachOS — schéma complet (tables + RLS + compte de démo + bucket Storage)
--- Généré à partir de supabase/migrations/000{1,2,3}_*.sql — colle ce fichier
+-- Généré à partir de supabase/migrations/000{1,2,3,4}_*.sql — colle ce fichier
 -- en une seule fois dans l'éditeur SQL de Supabase (voir docs/DEPLOIEMENT.md).
 
 -- CoachOS — schéma initial (cahier des charges §7 Modèle de données conceptuel)
@@ -506,3 +506,10 @@ create policy "Suppression de ses propres fichiers"
     bucket_id = 'coachos-uploads'
     and (storage.foldername(name))[2] = auth.uid()::text
   );
+
+-- CoachOS — champ manquant sur clients (cahier des charges §7 :
+-- « mensuration_champs_actifs (liste de clés référencées dans MeasurementField) »)
+
+alter table public.clients
+  add column if not exists mensuration_champs_actifs text[] not null
+    default array['weight', 'waist', 'chest', 'arm', 'thigh'];

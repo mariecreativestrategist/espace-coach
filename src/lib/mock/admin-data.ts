@@ -7,7 +7,7 @@
 export type ClientStatut = "Actif" | "En pause" | "Archivé";
 
 export interface Goal {
-  id: number;
+  id: string;
   title: string;
   progress: number;
 }
@@ -18,7 +18,7 @@ export interface WorkoutExercise {
 }
 
 export interface Workout {
-  id: number;
+  id: string;
   name: string;
   day: string;
   week: string;
@@ -35,16 +35,17 @@ export interface Physique {
 
 export interface NutritionFile {
   name: string;
+  url?: string;
 }
 
 export interface Measurement {
-  id: number;
+  id: string;
   date: string;
   values: Record<string, number | string>;
 }
 
 export interface ClientPhoto {
-  id: number;
+  id: string;
   name: string;
   date: string;
 }
@@ -52,7 +53,7 @@ export interface ClientPhoto {
 export type HealthQuestionType = "text" | "textarea" | "select";
 
 export interface HealthQuestion {
-  id: number;
+  id: string;
   label: string;
   type: HealthQuestionType;
   options?: string[];
@@ -60,7 +61,7 @@ export interface HealthQuestion {
 }
 
 export interface Client {
-  id: number;
+  id: string;
   initials: string;
   name: string;
   email: string;
@@ -134,13 +135,13 @@ export interface Invoice {
 
 export function defaultHealthQuestions(): HealthQuestion[] {
   return [
-    { id: 1, label: "Aval médical pour le sport", type: "select", options: ["Oui", "Non", "Non renseigné"], value: "Non renseigné" },
-    { id: 2, label: "Fumeur", type: "select", options: ["Oui", "Non", "Non renseigné"], value: "Non renseigné" },
-    { id: 3, label: "Niveau d'activité avant le coaching", type: "select", options: ["Sédentaire", "Modéré", "Actif", "Non renseigné"], value: "Non renseigné" },
-    { id: 4, label: "Antécédents médicaux", type: "textarea", value: "" },
-    { id: 5, label: "Blessures actuelles ou passées", type: "textarea", value: "" },
-    { id: 6, label: "Traitement médical en cours", type: "textarea", value: "" },
-    { id: 7, label: "Contre-indications à l'effort", type: "textarea", value: "" },
+    { id: "1", label: "Aval médical pour le sport", type: "select", options: ["Oui", "Non", "Non renseigné"], value: "Non renseigné" },
+    { id: "2", label: "Fumeur", type: "select", options: ["Oui", "Non", "Non renseigné"], value: "Non renseigné" },
+    { id: "3", label: "Niveau d'activité avant le coaching", type: "select", options: ["Sédentaire", "Modéré", "Actif", "Non renseigné"], value: "Non renseigné" },
+    { id: "4", label: "Antécédents médicaux", type: "textarea", value: "" },
+    { id: "5", label: "Blessures actuelles ou passées", type: "textarea", value: "" },
+    { id: "6", label: "Traitement médical en cours", type: "textarea", value: "" },
+    { id: "7", label: "Contre-indications à l'effort", type: "textarea", value: "" },
   ];
 }
 
@@ -166,21 +167,21 @@ function withHealth(overrides: Partial<Record<number, string>>): HealthQuestion[
 
 export const clientsSeed: Client[] = [
   {
-    id: 1, initials: "LC", name: "Lisa Carion", email: "lisa.carion@email.com", phone: "06 12 34 56 78",
+    id: "1", initials: "LC", name: "Lisa Carion", email: "lisa.carion@email.com", phone: "06 12 34 56 78",
     program: "Prise de masse", status: "Actif", progress: 72, lastSession: "08 août", sessions: 12,
     notes: "Très motivée, aime les défis de charge. Attention à l'épaule droite sur les développés.",
     goals: [
-      { id: 1, title: "Atteindre 65kg au squat 5x5", progress: 80 },
-      { id: 2, title: "Perdre 3kg de masse grasse", progress: 45 },
+      { id: "1", title: "Atteindre 65kg au squat 5x5", progress: 80 },
+      { id: "2", title: "Perdre 3kg de masse grasse", progress: 45 },
     ],
     workouts: [
-      { id: 1, name: "Séance Jambes", day: "Lundi", week: "Semaine 1", comment: "", exercises: [
+      { id: "1", name: "Séance Jambes", day: "Lundi", week: "Semaine 1", comment: "", exercises: [
         { name: "Squat", sets: "5x5 60kg" }, { name: "Leg press", sets: "4x10" }, { name: "Fentes marchées", sets: "3x12" }, { name: "Mollets", sets: "4x15" },
       ] },
-      { id: 2, name: "Séance Push", day: "Mercredi", week: "Semaine 1", comment: "", exercises: [
+      { id: "2", name: "Séance Push", day: "Mercredi", week: "Semaine 1", comment: "", exercises: [
         { name: "Développé couché", sets: "4x8" }, { name: "Dips", sets: "3x10" }, { name: "Élévations latérales", sets: "3x15" },
       ] },
-      { id: 6, name: "Séance Jambes", day: "Lundi", week: "Semaine 2", comment: "Charge en hausse par rapport à la semaine 1.", exercises: [
+      { id: "6", name: "Séance Jambes", day: "Lundi", week: "Semaine 2", comment: "Charge en hausse par rapport à la semaine 1.", exercises: [
         { name: "Squat", sets: "5x5 65kg" }, { name: "Leg press", sets: "4x10" }, { name: "Fentes marchées", sets: "3x12" }, { name: "Mollets", sets: "4x15" },
       ] },
     ],
@@ -188,52 +189,52 @@ export const clientsSeed: Client[] = [
     nutritionFile: { name: "plan_alimentaire_lisa_aout.pdf" },
     measurementFields: ["weight", "waist", "chest", "arm", "thigh"],
     measurements: [
-      { id: 1, date: "01 juil.", values: { weight: 58, waist: 68, chest: 88, arm: 26, thigh: 52 } },
-      { id: 2, date: "01 août", values: { weight: 61, waist: 67, chest: 90, arm: 27, thigh: 53 } },
+      { id: "1", date: "01 juil.", values: { weight: 58, waist: 68, chest: 88, arm: 26, thigh: 52 } },
+      { id: "2", date: "01 août", values: { weight: 61, waist: 67, chest: 90, arm: 27, thigh: 53 } },
     ],
     photos: [
-      { id: 1, name: "lisa_face_01-07.jpg", date: "01 juil." },
-      { id: 2, name: "lisa_profil_01-08.jpg", date: "01 août" },
+      { id: "1", name: "lisa_face_01-07.jpg", date: "01 juil." },
+      { id: "2", name: "lisa_profil_01-08.jpg", date: "01 août" },
     ],
     healthQuestions: withHealth({ 0: "Oui", 1: "Non", 2: "Modéré", 3: "RAS", 4: "Légère gêne à l'épaule droite (ancienne luxation)", 5: "Aucun", 6: "Éviter les charges lourdes en développé militaire" }),
   },
   {
-    id: 2, initials: "TM", name: "Tom Mercier", email: "tom.mercier@email.com", phone: "06 22 33 44 55",
+    id: "2", initials: "TM", name: "Tom Mercier", email: "tom.mercier@email.com", phone: "06 22 33 44 55",
     program: "Perte de poids", status: "Actif", progress: 45, lastSession: "07 août", sessions: 6, notes: "",
-    goals: [{ id: 3, title: "Perdre 5kg avant la rentrée", progress: 30 }],
+    goals: [{ id: "3", title: "Perdre 5kg avant la rentrée", progress: 30 }],
     workouts: [
-      { id: 3, name: "Cardio + gainage", day: "Mardi", week: "Semaine 1", comment: "", exercises: [
+      { id: "3", name: "Cardio + gainage", day: "Mardi", week: "Semaine 1", comment: "", exercises: [
         { name: "Vélo / Cardio", sets: "30 min" }, { name: "Gainage", sets: "3x1 min" }, { name: "Mountain climbers", sets: "3x20" },
       ] },
     ],
     physique: { height: 178, startWeight: 92, currentWeight: 87, targetWeight: 80 },
     nutritionFile: null,
     measurementFields: ["weight", "waist", "chest", "arm", "thigh"],
-    measurements: [{ id: 3, date: "15 juil.", values: { weight: 92, waist: 98, chest: 102, arm: 32, thigh: 58 } }],
+    measurements: [{ id: "3", date: "15 juil.", values: { weight: 92, waist: 98, chest: 102, arm: 32, thigh: 58 } }],
     photos: [],
     healthQuestions: withHealth({ 0: "Oui", 1: "Non", 2: "Sédentaire", 3: "Léger surpoids" }),
   },
   {
-    id: 3, initials: "SB", name: "Sarah Ben", email: "sarah.ben@email.com", phone: "06 33 44 55 66",
+    id: "3", initials: "SB", name: "Sarah Ben", email: "sarah.ben@email.com", phone: "06 33 44 55 66",
     program: "Powerlifting", status: "Actif", progress: 88, lastSession: "08 août", sessions: 21, notes: "",
     goals: [
-      { id: 4, title: "Squat à 100kg", progress: 90 },
-      { id: 5, title: "Deadlift à 130kg", progress: 70 },
+      { id: "4", title: "Squat à 100kg", progress: 90 },
+      { id: "5", title: "Deadlift à 130kg", progress: 70 },
     ],
     workouts: [
-      { id: 4, name: "Séance Force", day: "Lundi", week: "Semaine 1", comment: "", exercises: [
+      { id: "4", name: "Séance Force", day: "Lundi", week: "Semaine 1", comment: "", exercises: [
         { name: "Squat", sets: "5x3 92kg" }, { name: "Deadlift", sets: "3x5 110kg" }, { name: "Développé couché", sets: "4x5 60kg" },
       ] },
     ],
     physique: { height: 170, startWeight: 70, currentWeight: 72, targetWeight: 74 },
     nutritionFile: { name: "plan_nutrition_sarah.pdf" },
     measurementFields: ["weight", "waist", "chest", "arm", "thigh"],
-    measurements: [{ id: 4, date: "01 août", values: { weight: 72, waist: 71, chest: 94, arm: 29, thigh: 56 } }],
+    measurements: [{ id: "4", date: "01 août", values: { weight: 72, waist: 71, chest: 94, arm: 29, thigh: 56 } }],
     photos: [],
     healthQuestions: withHealth({ 0: "Oui", 1: "Non", 2: "Actif", 3: "RAS" }),
   },
   {
-    id: 4, initials: "JD", name: "Julie Dorval", email: "julie.dorval@email.com", phone: "06 44 55 66 77",
+    id: "4", initials: "JD", name: "Julie Dorval", email: "julie.dorval@email.com", phone: "06 44 55 66 77",
     program: "Remise en forme", status: "En pause", progress: 20, lastSession: "28 juil.", sessions: 2, notes: "",
     goals: [], workouts: [],
     physique: { height: 162, startWeight: 68, currentWeight: 68, targetWeight: 62 },
@@ -243,25 +244,25 @@ export const clientsSeed: Client[] = [
     healthQuestions: defaultHealthQuestions(),
   },
   {
-    id: 5, initials: "MF", name: "Marc Ferreira", email: "marc.ferreira@email.com", phone: "06 55 66 77 88",
+    id: "5", initials: "MF", name: "Marc Ferreira", email: "marc.ferreira@email.com", phone: "06 55 66 77 88",
     program: "Prise de masse", status: "Actif", progress: 60, lastSession: "06 août", sessions: 15, notes: "",
-    goals: [{ id: 6, title: "Prise de 4kg de muscle", progress: 55 }],
+    goals: [{ id: "6", title: "Prise de 4kg de muscle", progress: 55 }],
     workouts: [
-      { id: 5, name: "Séance Dos", day: "Jeudi", week: "Semaine 1", comment: "", exercises: [
+      { id: "5", name: "Séance Dos", day: "Jeudi", week: "Semaine 1", comment: "", exercises: [
         { name: "Tractions", sets: "4x8" }, { name: "Rowing barre", sets: "4x10" }, { name: "Tirage vertical", sets: "3x12" },
       ] },
     ],
     physique: { height: 180, startWeight: 75, currentWeight: 78, targetWeight: 82 },
     nutritionFile: null,
     measurementFields: ["weight", "waist", "chest", "arm", "thigh"],
-    measurements: [{ id: 5, date: "20 juil.", values: { weight: 75, waist: 80, chest: 98, arm: 33, thigh: 57 } }],
+    measurements: [{ id: "5", date: "20 juil.", values: { weight: 75, waist: 80, chest: 98, arm: 33, thigh: 57 } }],
     photos: [],
     healthQuestions: withHealth({ 0: "Oui", 1: "Non", 2: "Modéré", 3: "RAS" }),
   },
   {
-    id: 6, initials: "ER", name: "Emma Roy", email: "emma.roy@email.com", phone: "06 66 77 88 99",
+    id: "6", initials: "ER", name: "Emma Roy", email: "emma.roy@email.com", phone: "06 66 77 88 99",
     program: "Cardio", status: "Archivé", progress: 100, lastSession: "12 juin", sessions: 30, notes: "",
-    goals: [{ id: 7, title: "Marathon de Paris terminé", progress: 100 }], workouts: [],
+    goals: [{ id: "7", title: "Marathon de Paris terminé", progress: 100 }], workouts: [],
     physique: { height: 167, startWeight: 60, currentWeight: 58, targetWeight: 58 },
     nutritionFile: null,
     measurementFields: ["weight", "waist"],
@@ -363,4 +364,12 @@ export function invStatusLabel(s: InvoiceStatus): string {
 
 export function invStatusClass(s: InvoiceStatus): string {
   return s === "payee" ? "badge-green" : s === "attente" ? "badge-warning" : "badge-danger";
+}
+
+export function clientStatusToDb(s: ClientStatut): "actif" | "en_pause" | "archivé" {
+  return s === "Actif" ? "actif" : s === "En pause" ? "en_pause" : "archivé";
+}
+
+export function clientStatusFromDb(s: "actif" | "en_pause" | "archivé"): ClientStatut {
+  return s === "actif" ? "Actif" : s === "en_pause" ? "En pause" : "Archivé";
 }

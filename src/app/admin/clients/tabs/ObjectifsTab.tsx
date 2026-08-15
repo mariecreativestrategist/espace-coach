@@ -4,22 +4,21 @@ import { useState } from "react";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import type { Client } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
 
 export function ObjectifsTab({
   client,
   onUpdate,
-  nextGoalId,
-  onGoalIdUsed,
 }: {
   client: Client;
   onUpdate: (updater: (c: Client) => Client) => void;
-  nextGoalId: number;
-  onGoalIdUsed: () => void;
 }) {
   const showToast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [progress, setProgress] = useState("0");
+  const [saving, setSaving] = useState(false);
 
   function openModal() {
     setTitle("");
@@ -27,18 +26,45 @@ export function ObjectifsTab({
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    const id = nextGoalId;
-    onUpdate((c) => ({ ...c, goals: [...c.goals, { id, title: trimmed, progress: parseInt(progress, 10) || 0 }] }));
-    onGoalIdUsed();
+    const progressNum = parseInt(progress, 10) || 0;
+
+    if (!isSupabaseConfigured) {
+      onUpdate((c) => ({ ...c, goals: [...c.goals, { id: crypto.randomUUID(), title: trimmed, progress: progressNum }] }));
+      setModalOpen(false);
+      showToast("Objectif ajouté");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("goals")
+      .insert({ client_id: client.id, titre: trimmed, progression: progressNum })
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter l'objectif.");
+      return;
+    }
+    onUpdate((c) => ({ ...c, goals: [...c.goals, { id: data.id, title: data.titre, progress: data.progression }] }));
     setModalOpen(false);
     showToast("Objectif ajouté");
   }
 
-  function deleteGoal(goalId: number) {
+  async function deleteGoal(goalId: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("goals").delete().eq("id", goalId);
+      if (error) {
+        showToast("Impossible de supprimer l'objectif.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, goals: c.goals.filter((g) => g.id !== goalId) }));
     showToast("Objectif supprimé");
   }
@@ -97,8 +123,8 @@ export function ObjectifsTab({
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter l&apos;objectif
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter l'objectif"}
             </button>
           </div>
         </form>

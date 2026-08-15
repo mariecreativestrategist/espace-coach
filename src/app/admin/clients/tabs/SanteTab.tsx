@@ -4,31 +4,47 @@ import { useState } from "react";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import type { Client, HealthQuestionType } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
+
+function typeToDb(t: HealthQuestionType): "texte_court" | "texte_long" | "choix" {
+  return t === "select" ? "choix" : t === "textarea" ? "texte_long" : "texte_court";
+}
+function typeFromDb(t: "texte_court" | "texte_long" | "choix"): HealthQuestionType {
+  return t === "choix" ? "select" : t === "texte_long" ? "textarea" : "text";
+}
 
 export function SanteTab({
   client,
   onUpdate,
-  nextQuestionId,
-  onQuestionIdUsed,
 }: {
   client: Client;
   onUpdate: (updater: (c: Client) => Client) => void;
-  nextQuestionId: number;
-  onQuestionIdUsed: () => void;
 }) {
   const showToast = useToast();
-  const [values, setValues] = useState<Record<number, string>>(
+  const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(client.healthQuestions.map((q) => [q.id, q.value])),
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [type, setType] = useState<HealthQuestionType>("text");
+  const [saving, setSaving] = useState(false);
 
-  function setValue(id: number, value: string) {
+  function setValue(id: string, value: string) {
     setValues((prev) => ({ ...prev, [id]: value }));
   }
 
-  function saveHealth() {
+  async function saveHealth() {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const results = await Promise.all(
+        client.healthQuestions.map((q) => supabase.from("health_questions").update({ valeur: values[q.id] ?? q.value }).eq("id", q.id)),
+      );
+      if (results.some((r) => r.error)) {
+        showToast("Impossible d'enregistrer le questionnaire.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, healthQuestions: c.healthQuestions.map((q) => ({ ...q, value: values[q.id] ?? q.value })) }));
     showToast("Questionnaire enregistré");
   }
@@ -39,21 +55,50 @@ export function SanteTab({
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = label.trim();
     if (!trimmed) return;
-    const id = nextQuestionId;
     const options = type === "select" ? ["Oui", "Non", "Non renseigné"] : undefined;
     const value = type === "select" ? "Non renseigné" : "";
-    onUpdate((c) => ({ ...c, healthQuestions: [...c.healthQuestions, { id, label: trimmed, type, options, value }] }));
-    onQuestionIdUsed();
-    setValues((prev) => ({ ...prev, [id]: value }));
+
+    if (!isSupabaseConfigured) {
+      const id = crypto.randomUUID();
+      onUpdate((c) => ({ ...c, healthQuestions: [...c.healthQuestions, { id, label: trimmed, type, options, value }] }));
+      setValues((prev) => ({ ...prev, [id]: value }));
+      setModalOpen(false);
+      showToast("Question ajoutée au questionnaire");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("health_questions")
+      .insert({ client_id: client.id, libelle: trimmed, type: typeToDb(type), options, valeur: value, ordre: client.healthQuestions.length })
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter la question.");
+      return;
+    }
+    const newQuestion = { id: data.id, label: data.libelle, type: typeFromDb(data.type), options: data.options ?? undefined, value: data.valeur ?? "" };
+    onUpdate((c) => ({ ...c, healthQuestions: [...c.healthQuestions, newQuestion] }));
+    setValues((prev) => ({ ...prev, [data.id]: value }));
     setModalOpen(false);
     showToast("Question ajoutée au questionnaire");
   }
 
-  function deleteQuestion(id: number) {
+  async function deleteQuestion(id: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("health_questions").delete().eq("id", id);
+      if (error) {
+        showToast("Impossible de supprimer la question.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, healthQuestions: c.healthQuestions.filter((q) => q.id !== id) }));
     showToast("Question supprimée");
   }
@@ -128,8 +173,8 @@ export function SanteTab({
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter la question
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter la question"}
             </button>
           </div>
         </form>

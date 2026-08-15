@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import { exercisesSeed, type Client, type WorkoutExercise } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
 
 const dayOptions = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 interface WorkoutRow {
   rowId: number;
-  exerciseName: string;
+  exerciseValue: string;
   other: string;
   sets: string;
 }
@@ -17,13 +19,9 @@ interface WorkoutRow {
 export function SeancesTab({
   client,
   onUpdate,
-  nextWorkoutId,
-  onWorkoutIdUsed,
 }: {
   client: Client;
   onUpdate: (updater: (c: Client) => Client) => void;
-  nextWorkoutId: number;
-  onWorkoutIdUsed: () => void;
 }) {
   const showToast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
@@ -33,19 +31,37 @@ export function SeancesTab({
   const [comment, setComment] = useState("");
   const [rows, setRows] = useState<WorkoutRow[]>([]);
   const [rowCounter, setRowCounter] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const [libraryExercises, setLibraryExercises] = useState<{ id: string; name: string }[]>(
+    isSupabaseConfigured ? [] : exercisesSeed.map((e) => ({ id: e.name, name: e.name })),
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("exercises").select("id, nom").eq("coach_id", user.id).order("nom");
+      if (data) setLibraryExercises(data.map((e) => ({ id: e.id, name: e.nom })));
+    })();
+  }, []);
 
   function openModal() {
     setName("");
     setDay(dayOptions[0]!);
     setWeek("Semaine 1");
     setComment("");
-    setRows([{ rowId: 0, exerciseName: "", other: "", sets: "" }]);
+    setRows([{ rowId: 0, exerciseValue: "", other: "", sets: "" }]);
     setRowCounter(1);
     setModalOpen(true);
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { rowId: rowCounter, exerciseName: "", other: "", sets: "" }]);
+    setRows((prev) => [...prev, { rowId: rowCounter, exerciseValue: "", other: "", sets: "" }]);
     setRowCounter((n) => n + 1);
   }
 
@@ -57,26 +73,75 @@ export function SeancesTab({
     setRows((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, ...patch } : r)));
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    const exercisesList: WorkoutExercise[] = [];
-    for (const row of rows) {
-      const exName = row.exerciseName === "__other__" ? row.other.trim() : row.exerciseName;
-      if (exName) exercisesList.push({ name: exName, sets: row.sets.trim() });
+    const weekValue = week.trim() || "Semaine 1";
+
+    if (!isSupabaseConfigured) {
+      const exercisesList: WorkoutExercise[] = [];
+      for (const row of rows) {
+        const exName = row.exerciseValue === "__other__" ? row.other.trim() : row.exerciseValue;
+        if (exName) exercisesList.push({ name: exName, sets: row.sets.trim() });
+      }
+      onUpdate((c) => ({
+        ...c,
+        workouts: [...c.workouts, { id: crypto.randomUUID(), name: trimmedName, day, week: weekValue, exercises: exercisesList, comment: comment.trim() }],
+      }));
+      setModalOpen(false);
+      showToast("Séance ajoutée");
+      return;
     }
-    const id = nextWorkoutId;
+
+    setSaving(true);
+    const supabase = createClient();
+    const { data: workoutRow, error: workoutError } = await supabase
+      .from("workouts")
+      .insert({ client_id: client.id, nom: trimmedName, jour: day, semaine_cycle: weekValue, commentaire: comment.trim() })
+      .select()
+      .single();
+    if (workoutError || !workoutRow) {
+      setSaving(false);
+      showToast("Impossible d'ajouter la séance.");
+      return;
+    }
+
+    const exercisesList: WorkoutExercise[] = [];
+    const exerciseRows: { workout_id: string; exercise_id: string | null; nom_libre: string | null; series_repetitions: string; ordre: number }[] = [];
+    rows.forEach((row, i) => {
+      if (row.exerciseValue === "__other__") {
+        const trimmed = row.other.trim();
+        if (!trimmed) return;
+        exerciseRows.push({ workout_id: workoutRow.id, exercise_id: null, nom_libre: trimmed, series_repetitions: row.sets.trim(), ordre: i });
+        exercisesList.push({ name: trimmed, sets: row.sets.trim() });
+      } else if (row.exerciseValue) {
+        const found = libraryExercises.find((e) => e.id === row.exerciseValue);
+        if (!found) return;
+        exerciseRows.push({ workout_id: workoutRow.id, exercise_id: row.exerciseValue, nom_libre: null, series_repetitions: row.sets.trim(), ordre: i });
+        exercisesList.push({ name: found.name, sets: row.sets.trim() });
+      }
+    });
+    if (exerciseRows.length) await supabase.from("workout_exercises").insert(exerciseRows);
+
+    setSaving(false);
     onUpdate((c) => ({
       ...c,
-      workouts: [...c.workouts, { id, name: trimmedName, day, week: week.trim() || "Semaine 1", exercises: exercisesList, comment: comment.trim() }],
+      workouts: [...c.workouts, { id: workoutRow.id, name: workoutRow.nom, day: workoutRow.jour ?? "", week: workoutRow.semaine_cycle, exercises: exercisesList, comment: workoutRow.commentaire ?? "" }],
     }));
-    onWorkoutIdUsed();
     setModalOpen(false);
     showToast("Séance ajoutée");
   }
 
-  function deleteWorkout(workoutId: number) {
+  async function deleteWorkout(workoutId: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("workouts").delete().eq("id", workoutId);
+      if (error) {
+        showToast("Impossible de supprimer la séance.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, workouts: c.workouts.filter((w) => w.id !== workoutId) }));
     showToast("Séance supprimée");
   }
@@ -167,18 +232,18 @@ export function SeancesTab({
                   <div className="workout-row" key={row.rowId}>
                     <select
                       className="wrow-select"
-                      value={row.exerciseName}
-                      onChange={(e) => updateRow(row.rowId, { exerciseName: e.target.value })}
+                      value={row.exerciseValue}
+                      onChange={(e) => updateRow(row.rowId, { exerciseValue: e.target.value })}
                     >
                       <option value="">— Choisir un exercice —</option>
-                      {exercisesSeed.map((ex) => (
-                        <option value={ex.name} key={ex.id}>
+                      {libraryExercises.map((ex) => (
+                        <option value={ex.id} key={ex.id}>
                           {ex.name}
                         </option>
                       ))}
                       <option value="__other__">Autre…</option>
                     </select>
-                    {row.exerciseName === "__other__" && (
+                    {row.exerciseValue === "__other__" && (
                       <input
                         type="text"
                         className="wrow-other"
@@ -223,8 +288,8 @@ export function SeancesTab({
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter la séance
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter la séance"}
             </button>
           </div>
         </form>

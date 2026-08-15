@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useToast } from "@/components/shared/ToastProvider";
 import { calcBMI, calcWeightProgress, type Client } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
 
 export function ApercuTab({
   client,
@@ -23,20 +25,42 @@ export function ApercuTab({
   const targetBMI = calcBMI(parseFloat(targetWeight) || null, parseFloat(height) || null);
   const progressPct = calcWeightProgress(parseFloat(startWeight) || null, parseFloat(currentWeight) || null, parseFloat(targetWeight) || null);
 
-  function savePhysique() {
-    onUpdate((c) => ({
-      ...c,
-      physique: {
-        height: parseFloat(height) || null,
-        startWeight: parseFloat(startWeight) || null,
-        currentWeight: parseFloat(currentWeight) || null,
-        targetWeight: parseFloat(targetWeight) || null,
-      },
-    }));
+  async function savePhysique() {
+    const physique = {
+      height: parseFloat(height) || null,
+      startWeight: parseFloat(startWeight) || null,
+      currentWeight: parseFloat(currentWeight) || null,
+      targetWeight: parseFloat(targetWeight) || null,
+    };
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          taille_cm: physique.height,
+          poids_depart: physique.startWeight,
+          poids_actuel: physique.currentWeight,
+          poids_objectif: physique.targetWeight,
+        })
+        .eq("id", client.id);
+      if (error) {
+        showToast("Impossible d'enregistrer le suivi physique.");
+        return;
+      }
+    }
+    onUpdate((c) => ({ ...c, physique }));
     showToast("Suivi physique mis à jour");
   }
 
-  function saveNotes() {
+  async function saveNotes() {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("clients").update({ notes_internes: notes }).eq("id", client.id);
+      if (error) {
+        showToast("Impossible d'enregistrer les notes.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, notes }));
     showToast("Notes mises à jour");
   }

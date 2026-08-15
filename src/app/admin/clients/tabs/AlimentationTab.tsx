@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useToast } from "@/components/shared/ToastProvider";
 import type { Client } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase/storage";
 
 export function AlimentationTab({
   client,
@@ -13,18 +15,64 @@ export function AlimentationTab({
 }) {
   const showToast = useToast();
   const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  function save() {
+  async function save() {
     if (!file) {
       showToast("Sélectionnez un fichier PDF");
       return;
     }
-    onUpdate((c) => ({ ...c, nutritionFile: { name: file.name } }));
+
+    if (!isSupabaseConfigured) {
+      onUpdate((c) => ({ ...c, nutritionFile: { name: file.name } }));
+      setFile(null);
+      showToast("Plan alimentaire importé");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setSaving(false);
+      return;
+    }
+
+    const path = `nutrition-files/${user.id}/${client.id}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file);
+    if (uploadError) {
+      setSaving(false);
+      showToast("Échec de l'envoi du fichier.");
+      return;
+    }
+    const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+
+    await supabase.from("nutrition_files").delete().eq("client_id", client.id);
+    const { error: insertError } = await supabase
+      .from("nutrition_files")
+      .insert({ client_id: client.id, nom_fichier: file.name, url: publicUrl.publicUrl });
+    setSaving(false);
+    if (insertError) {
+      showToast("Impossible d'enregistrer le fichier.");
+      return;
+    }
+
+    onUpdate((c) => ({ ...c, nutritionFile: { name: file.name, url: publicUrl.publicUrl } }));
     setFile(null);
     showToast("Plan alimentaire importé");
   }
 
-  function remove() {
+  async function remove() {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("nutrition_files").delete().eq("client_id", client.id);
+      if (error) {
+        showToast("Impossible de supprimer le fichier.");
+        return;
+      }
+    }
     onUpdate((c) => ({ ...c, nutritionFile: null }));
     showToast("Plan alimentaire supprimé");
   }
@@ -49,9 +97,15 @@ export function AlimentationTab({
               </div>
               <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>Fichier PDF importé</div>
             </div>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => showToast(`Ouverture de ${client.nutritionFile!.name}`)}>
-              Consulter
-            </button>
+            {client.nutritionFile.url ? (
+              <a className="btn btn-ghost btn-sm" href={client.nutritionFile.url} target="_blank" rel="noreferrer">
+                Consulter
+              </a>
+            ) : (
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => showToast(`Ouverture de ${client.nutritionFile!.name}`)}>
+                Consulter
+              </button>
+            )}
             <button className="icon-action danger" type="button" onClick={remove}>
               <svg className="icon" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
                 <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
@@ -78,8 +132,8 @@ export function AlimentationTab({
               style={{ flex: 1, minWidth: 200, background: "var(--bg-surface-2)", border: "1px solid var(--border-subtle)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 12.5 }}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
-            <button className="btn btn-primary btn-sm" type="button" onClick={save}>
-              {client.nutritionFile ? "Importer" : "Importer le fichier"}
+            <button className="btn btn-primary btn-sm" type="button" onClick={save} disabled={saving}>
+              {saving ? "Envoi…" : client.nutritionFile ? "Importer" : "Importer le fichier"}
             </button>
           </div>
         </div>
