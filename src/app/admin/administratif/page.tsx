@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
@@ -14,6 +14,8 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase/storage";
 
 const services = [
   "Abonnement mensuel",
@@ -26,11 +28,22 @@ const services = [
 
 type AttachType = "none" | "file" | "link";
 
+function statusToDb(s: InvoiceStatus): "payée" | "en_attente" | "en_retard" {
+  return s === "payee" ? "payée" : s === "retard" ? "en_retard" : "en_attente";
+}
+function statusFromDb(s: "payée" | "en_attente" | "en_retard"): InvoiceStatus {
+  return s === "payée" ? "payee" : s === "en_retard" ? "retard" : "attente";
+}
+
 export default function AdminAdministratifPage() {
   const showToast = useToast();
-  const [invoices, setInvoices] = useState(invoicesSeed);
+  const [invoices, setInvoices] = useState<Invoice[]>(isSupabaseConfigured ? [] : invoicesSeed);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [coachId, setCoachId] = useState<string | null>(null);
+  const [realClients, setRealClients] = useState<{ id: string; name: string }[]>([]);
   const [counter, setCounter] = useState(144);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [client, setClient] = useState("");
   const [service, setService] = useState(services[0]!);
@@ -40,6 +53,52 @@ export default function AdminAdministratifPage() {
   const [attachType, setAttachType] = useState<AttachType>("none");
   const [attachFile, setAttachFile] = useState<File | null>(null);
   const [attachLink, setAttachLink] = useState("");
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      setCoachId(user.id);
+
+      const [invRes, clientsRes] = await Promise.all([
+        supabase.from("invoices").select("*").eq("coach_id", user.id).order("date", { ascending: false }),
+        supabase.from("clients").select("id, nom").eq("coach_id", user.id),
+      ]);
+      if (cancelled) return;
+
+      const clientNameById = new Map((clientsRes.data ?? []).map((c) => [c.id, c.nom]));
+      setRealClients((clientsRes.data ?? []).map((c) => ({ id: c.id, name: c.nom })));
+
+      if (invRes.error) {
+        showToast("Impossible de charger les factures.");
+      } else if (invRes.data) {
+        setInvoices(
+          invRes.data.map((row) => ({
+            id: row.numero,
+            client: clientNameById.get(row.client_id) ?? "Client",
+            service: row.prestation,
+            date: formatDateFR(row.date),
+            amount: row.montant,
+            status: statusFromDb(row.statut),
+            attachment: row.justificatif_url
+              ? { type: row.justificatif_type === "fichier" ? "file" : "link", label: row.justificatif_url }
+              : null,
+          })),
+        );
+        setCounter(invRes.data.length + 143);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const total = invoices.reduce((s, i) => s + i.amount, 0);
   const paid = invoices.filter((i) => i.status === "payee").reduce((s, i) => s + i.amount, 0);
@@ -58,22 +117,88 @@ export default function AdminAdministratifPage() {
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!client.trim() || !amount || !date) return;
-    let attachment: Invoice["attachment"] = null;
-    if (attachType === "file" && attachFile) attachment = { type: "file", label: attachFile.name };
-    else if (attachType === "link" && attachLink.trim()) attachment = { type: "link", label: attachLink.trim() };
-    const newInvoice: Invoice = {
-      id: `0${counter + 1}`,
-      client: client.trim(),
-      service,
-      date: formatDateFR(date),
-      amount: parseFloat(amount),
-      status,
-      attachment,
-    };
-    setInvoices((prev) => [newInvoice, ...prev]);
+
+    if (!isSupabaseConfigured) {
+      let attachment: Invoice["attachment"] = null;
+      if (attachType === "file" && attachFile) attachment = { type: "file", label: attachFile.name };
+      else if (attachType === "link" && attachLink.trim()) attachment = { type: "link", label: attachLink.trim() };
+      const newInvoice: Invoice = {
+        id: `0${counter + 1}`,
+        client: client.trim(),
+        service,
+        date: formatDateFR(date),
+        amount: parseFloat(amount),
+        status,
+        attachment,
+      };
+      setInvoices((prev) => [newInvoice, ...prev]);
+      setCounter((c) => c + 1);
+      setModalOpen(false);
+      showToast("Facture créée");
+      return;
+    }
+
+    const matchedClient = realClients.find((c) => c.name.toLowerCase() === client.trim().toLowerCase());
+    if (!matchedClient || !coachId) {
+      showToast("Client introuvable — choisis un nom dans la liste suggérée.");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+
+    let justificatifUrl: string | null = null;
+    let justificatifType: "fichier" | "lien" | null = null;
+    if (attachType === "file" && attachFile) {
+      const path = `invoices/${coachId}/${Date.now()}-${attachFile.name}`;
+      const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, attachFile);
+      if (!uploadError) {
+        const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        justificatifUrl = publicUrl.publicUrl;
+        justificatifType = "fichier";
+      }
+    } else if (attachType === "link" && attachLink.trim()) {
+      justificatifUrl = attachLink.trim();
+      justificatifType = "lien";
+    }
+
+    const numero = String(counter + 1).padStart(4, "0");
+    const { data, error } = await supabase
+      .from("invoices")
+      .insert({
+        client_id: matchedClient.id,
+        coach_id: coachId,
+        numero,
+        prestation: service,
+        montant: parseFloat(amount),
+        date,
+        statut: statusToDb(status),
+        justificatif_url: justificatifUrl,
+        justificatif_type: justificatifType,
+      })
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible de créer la facture.");
+      return;
+    }
+
+    setInvoices((prev) => [
+      {
+        id: data.numero,
+        client: matchedClient.name,
+        service: data.prestation,
+        date: formatDateFR(data.date),
+        amount: data.montant,
+        status: statusFromDb(data.statut),
+        attachment: data.justificatif_url ? { type: data.justificatif_type === "fichier" ? "file" : "link", label: data.justificatif_url } : null,
+      },
+      ...prev,
+    ]);
     setCounter((c) => c + 1);
     setModalOpen(false);
     showToast("Facture créée");
@@ -126,6 +251,13 @@ export default function AdminAdministratifPage() {
             </tr>
           </thead>
           <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px 0" }}>
+                  Chargement…
+                </td>
+              </tr>
+            )}
             {invoices.map((inv) => (
               <tr key={inv.id}>
                 <td className="invoice-id">#{inv.id}</td>
@@ -155,7 +287,7 @@ export default function AdminAdministratifPage() {
                       className="icon-action"
                       type="button"
                       title={inv.attachment.label}
-                      onClick={() => showToast(`Fichier joint : ${inv.attachment!.label}`)}
+                      onClick={() => (isSupabaseConfigured ? window.open(inv.attachment!.label, "_blank") : showToast(`Fichier joint : ${inv.attachment!.label}`))}
                     >
                       <svg className="icon" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
                         <path d="M21.4 11.1l-8.5 8.5a4.5 4.5 0 01-6.4-6.4l8.5-8.5a3 3 0 014.2 4.2L10.6 17.5a1.5 1.5 0 01-2.1-2.1l7.1-7.1" />
@@ -188,7 +320,7 @@ export default function AdminAdministratifPage() {
                 onChange={(e) => setClient(e.target.value)}
               />
               <datalist id="clientNamesListFacture">
-                {clientsSeed.map((c) => (
+                {(isSupabaseConfigured ? realClients : clientsSeed.map((c) => ({ id: c.id, name: c.name }))).map((c) => (
                   <option value={c.name} key={c.id} />
                 ))}
               </datalist>
@@ -249,8 +381,8 @@ export default function AdminAdministratifPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Créer la facture
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Création…" : "Créer la facture"}
             </button>
           </div>
         </form>

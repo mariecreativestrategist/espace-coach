@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
@@ -14,14 +14,58 @@ import {
   type AppointmentStatus,
   type AppointmentType,
 } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
 
 const dayNamesLong = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const slotDefaults = ["09:00", "11:00", "14:00", "17:00"];
+const moisFR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+function mondayOf(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+function isoDate(d: Date): string {
+  return d.toISOString().split("T")[0]!;
+}
+function slotIndexForHour(hour: number): number {
+  return hour < 10 ? 0 : hour < 13 ? 1 : hour < 16 ? 2 : 3;
+}
+
+function apptStatusFromDb(s: "prévue" | "réalisée" | "manquée"): AppointmentStatus {
+  return s === "réalisée" ? "realisee" : s === "manquée" ? "manquee" : "prevue";
+}
+function apptStatusToDb(s: AppointmentStatus): "prévue" | "réalisée" | "manquée" {
+  return s === "realisee" ? "réalisée" : s === "manquee" ? "manquée" : "prévue";
+}
+function apptTypeToClass(t: "coaching" | "découverte" | "bilan"): AppointmentType {
+  return t === "découverte" ? "rdv" : t === "bilan" ? "bilan" : "";
+}
 
 export default function AdminPlanningPage() {
   const showToast = useToast();
-  const [appointments, setAppointments] = useState(appointmentsSeed);
+  const [coachId, setCoachId] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [appointments, setAppointments] = useState<Appointment[]>(isSupabaseConfigured ? [] : appointmentsSeed);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
   const [nextId, setNextId] = useState(11);
+  const [realClients, setRealClients] = useState<{ id: string; name: string }[]>([]);
+
+  const monday = addDays(mondayOf(new Date()), weekOffset * 7);
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const today = new Date();
+  const todayIndex = weekDates.findIndex((d) => isoDate(d) === isoDate(today));
+  const weekLabel = `${weekDates[0]!.getDate()} – ${weekDates[6]!.getDate()} ${moisFR[weekDates[6]!.getMonth()]} ${weekDates[6]!.getFullYear()}`;
+  const displayDayNums = isSupabaseConfigured ? weekDates.map((d) => d.getDate()) : dayNums;
 
   const [rdvOpen, setRdvOpen] = useState(false);
   const [rdvDay, setRdvDay] = useState(0);
@@ -31,8 +75,67 @@ export default function AdminPlanningPage() {
   const [rdvMode, setRdvMode] = useState<"Visio" | "Présentiel">("Visio");
   const [rdvDuration, setRdvDuration] = useState("45 min");
   const [rdvNotes, setRdvNotes] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [attendanceId, setAttendanceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      setCoachId(user.id);
+
+      const [apptRes, clientsRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("*")
+          .eq("coach_id", user.id)
+          .gte("date", isoDate(weekDates[0]!))
+          .lte("date", isoDate(weekDates[6]!)),
+        supabase.from("clients").select("id, nom").eq("coach_id", user.id),
+      ]);
+      if (cancelled) return;
+
+      const clientNameById = new Map((clientsRes.data ?? []).map((c) => [c.id, c.nom]));
+      setRealClients((clientsRes.data ?? []).map((c) => ({ id: c.id, name: c.nom })));
+
+      if (apptRes.error) {
+        showToast("Impossible de charger le planning.");
+      } else if (apptRes.data) {
+        setAppointments(
+          apptRes.data.map((row) => {
+            const rowDate = new Date(row.date + "T00:00:00");
+            const dayIdx = weekDates.findIndex((d) => isoDate(d) === row.date);
+            const hour = parseInt(row.heure.split(":")[0]!, 10);
+            const clientName = clientNameById.get(row.client_id) ?? "Client";
+            const cls = apptTypeToClass(row.type);
+            const text =
+              row.type === "coaching" ? `${clientName} — Coaching` : row.type === "découverte" ? `RDV découverte — ${clientName}` : `Bilan — ${clientName}`;
+            return {
+              id: row.id as unknown as number,
+              day: dayIdx >= 0 ? dayIdx : rowDate.getDay(),
+              slot: slotIndexForHour(hour),
+              time: row.heure.slice(0, 5),
+              text,
+              type: cls,
+              status: apptStatusFromDb(row.statut),
+            };
+          }),
+        );
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekOffset]);
 
   const done = appointments.filter((a) => a.status === "realisee").length;
   const missed = appointments.filter((a) => a.status === "manquee").length;
@@ -49,26 +152,72 @@ export default function AdminPlanningPage() {
     setRdvOpen(true);
   }
 
-  function submitRdv(e: React.FormEvent) {
+  async function submitRdv(e: React.FormEvent) {
     e.preventDefault();
     const name = rdvName.trim();
     if (!name) return;
     const hour = parseInt(rdvTime.split(":")[0]!, 10);
-    const slotIdx = hour < 10 ? 0 : hour < 13 ? 1 : hour < 16 ? 2 : 3;
+    const slotIdx = slotIndexForHour(hour);
     let text: string;
     let cls: AppointmentType;
     if (rdvType === "coaching") { text = `${name} — Coaching`; cls = ""; }
     else if (rdvType === "decouverte") { text = `RDV découverte — ${name}`; cls = "rdv"; }
     else { text = `Bilan — ${name}`; cls = "bilan"; }
-    const newAppt: Appointment = { id: nextId, day: rdvDay, slot: slotIdx, time: rdvTime, text, type: cls, status: "prevue" };
-    setAppointments((prev) => [...prev, newAppt]);
-    setNextId((n) => n + 1);
+
+    if (!isSupabaseConfigured) {
+      const newAppt: Appointment = { id: nextId, day: rdvDay, slot: slotIdx, time: rdvTime, text, type: cls, status: "prevue" };
+      setAppointments((prev) => [...prev, newAppt]);
+      setNextId((n) => n + 1);
+      setRdvOpen(false);
+      showToast("Rendez-vous ajouté au planning");
+      return;
+    }
+
+    const client = realClients.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (!client || !coachId) {
+      showToast("Client introuvable — choisis un nom dans la liste suggérée.");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+    const dbType = rdvType === "decouverte" ? "découverte" : rdvType === "bilan" ? "bilan" : "coaching";
+    const dbMode = rdvMode === "Visio" ? "visio" : "présentiel";
+    const durationMin = parseInt(rdvDuration, 10) || 45;
+    const { data, error } = await supabase
+      .from("appointments")
+      .insert({
+        client_id: client.id,
+        coach_id: coachId,
+        date: isoDate(weekDates[rdvDay]!),
+        heure: rdvTime,
+        duree_min: durationMin,
+        type: dbType,
+        mode: dbMode,
+        notes: rdvNotes.trim() || null,
+      })
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter le rendez-vous.");
+      return;
+    }
+    setAppointments((prev) => [...prev, { id: data.id as unknown as number, day: rdvDay, slot: slotIdx, time: rdvTime, text, type: cls, status: "prevue" }]);
     setRdvOpen(false);
     showToast("Rendez-vous ajouté au planning");
   }
 
-  function setStatus(status: AppointmentStatus) {
+  async function setStatus(status: AppointmentStatus) {
     if (attendanceId === null) return;
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("appointments").update({ statut: apptStatusToDb(status) }).eq("id", attendanceId as unknown as string);
+      if (error) {
+        showToast("Impossible de mettre à jour le statut.");
+        return;
+      }
+    }
     setAppointments((prev) => prev.map((a) => (a.id === attendanceId ? { ...a, status } : a)));
     setAttendanceId(null);
     showToast(status === "realisee" ? "Séance marquée réalisée" : status === "manquee" ? "Séance marquée manquée" : "Statut réinitialisé");
@@ -114,13 +263,15 @@ export default function AdminPlanningPage() {
         </span>
 
         <div className="week-nav">
-          <button className="icon-btn" type="button">
+          <button className="icon-btn" type="button" onClick={() => setWeekOffset((w) => w - 1)} disabled={!isSupabaseConfigured}>
             <svg className="icon" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <span style={{ fontSize: 13, fontWeight: 600, padding: "0 8px" }}>4 – 10 août 2026</span>
-          <button className="icon-btn" type="button">
+          <span style={{ fontSize: 13, fontWeight: 600, padding: "0 8px" }}>
+            {isSupabaseConfigured ? weekLabel : "4 – 10 août 2026"}
+          </span>
+          <button className="icon-btn" type="button" onClick={() => setWeekOffset((w) => w + 1)} disabled={!isSupabaseConfigured}>
             <svg className="icon" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
               <path d="M9 18l6-6-6-6" />
             </svg>
@@ -131,40 +282,46 @@ export default function AdminPlanningPage() {
       <div className="cal-grid">
         <div className="cal-head" style={{ borderLeft: "none" }} />
         {days.map((d, i) => (
-          <div className={`cal-head${i === 5 ? " today" : ""}`} key={d}>
+          <div className={`cal-head${i === (isSupabaseConfigured ? todayIndex : 5) ? " today" : ""}`} key={d}>
             {d}
-            <span>{dayNums[i]}</span>
+            <span>{displayDayNums[i]}</span>
           </div>
         ))}
-        {slots.map((s, slotIdx) => (
-          <Fragment key={s}>
-            <div className="cal-time">{s}</div>
-            {days.map((d, dayIdx) => {
-              const items = appointments.filter((a) => a.day === dayIdx && a.slot === slotIdx);
-              return (
-                <div className="cal-cell" key={`${dayIdx}-${slotIdx}`} onClick={() => openRdvModal(dayIdx, slotIdx)}>
-                  {items.map((a) => {
-                    const statusClass = a.status === "realisee" ? " is-done" : a.status === "manquee" ? " is-missed" : "";
-                    return (
-                      <div
-                        className={`cal-block ${a.type}${statusClass}`}
-                        key={a.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAttendanceId(a.id);
-                        }}
-                      >
-                        <div className="t">{a.time}</div>
-                        {a.text}
-                        {a.status === "realisee" ? " ✓" : ""}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </Fragment>
-        ))}
+        {loading && (
+          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px 20px", color: "var(--text-muted)", fontSize: 13.5 }}>
+            Chargement…
+          </div>
+        )}
+        {!loading &&
+          slots.map((s, slotIdx) => (
+            <Fragment key={s}>
+              <div className="cal-time">{s}</div>
+              {days.map((d, dayIdx) => {
+                const items = appointments.filter((a) => a.day === dayIdx && a.slot === slotIdx);
+                return (
+                  <div className="cal-cell" key={`${dayIdx}-${slotIdx}`} onClick={() => openRdvModal(dayIdx, slotIdx)}>
+                    {items.map((a) => {
+                      const statusClass = a.status === "realisee" ? " is-done" : a.status === "manquee" ? " is-missed" : "";
+                      return (
+                        <div
+                          className={`cal-block ${a.type}${statusClass}`}
+                          key={a.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAttendanceId(a.id);
+                          }}
+                        >
+                          <div className="t">{a.time}</div>
+                          {a.text}
+                          {a.status === "realisee" ? " ✓" : ""}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </Fragment>
+          ))}
       </div>
       <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 12 }}>
         Astuce : cliquez sur un créneau libre pour ajouter un rendez-vous, ou sur un rendez-vous existant pour le
@@ -185,7 +342,7 @@ export default function AdminPlanningPage() {
                 onChange={(e) => setRdvName(e.target.value)}
               />
               <datalist id="clientNamesList">
-                {clientsSeed.map((c) => (
+                {(isSupabaseConfigured ? realClients : clientsSeed.map((c) => ({ id: c.id, name: c.name }))).map((c) => (
                   <option value={c.name} key={c.id} />
                 ))}
               </datalist>
@@ -213,7 +370,7 @@ export default function AdminPlanningPage() {
                 <select value={rdvDay} onChange={(e) => setRdvDay(Number(e.target.value))}>
                   {days.map((d, i) => (
                     <option value={i} key={d}>
-                      {d} {dayNums[i]} août
+                      {d} {displayDayNums[i]} {isSupabaseConfigured ? moisFR[weekDates[i]!.getMonth()] : "août"}
                     </option>
                   ))}
                 </select>
@@ -245,8 +402,8 @@ export default function AdminPlanningPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setRdvOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter le rendez-vous
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter le rendez-vous"}
             </button>
           </div>
         </form>
