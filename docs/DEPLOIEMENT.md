@@ -72,16 +72,14 @@ Resend permet d'envoyer un e-mail au coach quand un client écrit un message dan
 
 Sans étape supplémentaire, Resend n'autorise l'envoi qu'à l'adresse e-mail de ton propre compte Resend — c'est suffisant pour tester. Pour envoyer de vrais e-mails à tes clients plus tard, il faudra vérifier un nom de domaine (voir la section optionnelle tout en bas). Tu peux déployer sans faire cette étape maintenant, et t'en passer complètement si tu ne veux pas encore les notifications par e-mail.
 
-## Étape 5 — Copier le projet dans ton propre GitHub
+## Étape 5 — Déployer sur Vercel (en un clic)
 
-1. Ouvre le dépôt du projet sur GitHub.
-2. En haut à droite, clique **Fork** → **Create fork**. Ça crée une copie indépendante du code dans ton propre compte GitHub — c'est cette copie que tu vas déployer et pouvoir modifier librement.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmariecreativestrategist%2Fespace-coach&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,RESEND_API_KEY,RESEND_FROM_EMAIL,COACH_NOTIFICATION_EMAIL&envDescription=Clés%20nécessaires%20(voir%20le%20guide%20d%27installation)&envLink=https%3A%2F%2Fgithub.com%2Fmariecreativestrategist%2Fespace-coach%2Fblob%2Fmaster%2Fdocs%2FDEPLOIEMENT.md&project-name=coachos&repository-name=coachos)
 
-## Étape 6 — Déployer sur Vercel
-
-1. Va sur [vercel.com/new](https://vercel.com/new), connecte-toi avec ton compte GitHub.
-2. Clique **Import** à côté du dépôt que tu viens de forker (si tu ne le vois pas, clique "Adjust GitHub App Permissions" et autorise l'accès au dépôt).
-3. Un formulaire **Environment Variables** apparaît. Ajoute chaque variable avec sa valeur récoltée plus haut :
+1. Clique sur le bouton ci-dessus (ou colle cette adresse dans ton navigateur : `https://vercel.com/new/clone?repository-url=https://github.com/mariecreativestrategist/espace-coach`).
+2. Connecte-toi à Vercel avec ton compte GitHub, si ce n'est pas déjà fait.
+3. Vercel te propose de créer une copie du code dans ton propre compte GitHub — laisse le nom par défaut (`coachos`) ou choisis le tien, puis clique **Create**. C'est important : c'est ta copie, indépendante de l'originale, que tu vas pouvoir modifier librement.
+4. Un formulaire **Environment Variables** apparaît, avec les bons noms de variables déjà pré-remplis. Ajoute la valeur de chacune, récoltée plus haut :
 
    | Nom de la variable | Valeur à coller |
    |---|---|
@@ -92,9 +90,11 @@ Sans étape supplémentaire, Resend n'autorise l'envoi qu'à l'adresse e-mail de
    | `RESEND_FROM_EMAIL` | `CoachOS <onboarding@resend.dev>` (ou ton domaine vérifié, voir plus bas) |
    | `COACH_NOTIFICATION_EMAIL` | **ton propre email**, celui utilisé pour ton compte Resend — c'est là que tu recevras les notifications de test |
 
-4. Clique **Deploy**. Une page avec un chargement animé apparaît — patiente 2-3 minutes.
+5. Clique **Deploy**. Une page avec un chargement animé apparaît — patiente 2-3 minutes.
 
-## Étape 7 — Premiers tests
+> 💡 Si tu préfères garder la main sur la copie GitHub avant de déployer (par exemple pour la renommer autrement), tu peux aussi cliquer **Fork** en haut à droite du [dépôt GitHub](https://github.com/mariecreativestrategist/espace-coach) toi-même, puis aller sur [vercel.com/new](https://vercel.com/new) et cliquer **Import** à côté de ta copie — le résultat est identique, juste en deux étapes séparées.
+
+## Étape 6 — Premiers tests
 
 Le site est maintenant entièrement réel : ce que tu vas faire ci-dessous est vraiment sauvegardé dans ta base Supabase, pas juste affiché à l'écran.
 
@@ -111,14 +111,14 @@ Le site est maintenant entièrement réel : ce que tu vas faire ci-dessous est v
    - Va sur **Messagerie**, envoie un message → si Resend est configuré, un e-mail doit arriver à l'adresse mise dans `COACH_NOTIFICATION_EMAIL` en quelques secondes.
    - Va sur **Mon programme**, coche une séance comme réalisée → reviens sur l'espace admin (fiche du client de démo) et vérifie que le changement apparaît bien.
 
-## Étape 8 (optionnel) — Ton propre nom de domaine
+## Étape 7 (optionnel) — Ton propre nom de domaine
 
 Si tu as un nom de domaine (acheté chez OVH, Namecheap...) :
 
 1. Dans Vercel : **Project → Settings → Domains** → tape ton adresse souhaitée → **Add**.
 2. Suis les instructions DNS affichées (à ajouter chez ton fournisseur de domaine).
 
-## Étape 9 (optionnel) — Vérifier ton propre nom de domaine sur Resend
+## Étape 8 (optionnel) — Vérifier ton propre nom de domaine sur Resend
 
 Pour envoyer de vrais e-mails à tes clients (pas juste à toi-même), il faut prouver à Resend que tu es bien propriétaire d'un nom de domaine (ex : `tonagence.com`). Ça se fait en ajoutant quelques lignes de configuration chez l'endroit où tu as acheté ce nom de domaine — pas besoin de compétences techniques, juste de copier-coller.
 
