@@ -85,7 +85,7 @@ export function AlimentationTab({
       <div className="card-body">
         {client.nutritionFile ? (
           <div style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--bg-surface-2)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "16px 18px", flexWrap: "wrap" }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--grad-soft)", border: "1px solid rgba(61,220,132,.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-green)", flexShrink: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--grad-soft)", border: "1px solid rgba(var(--accent-green-rgb), .25)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-green)", flexShrink: 0 }}>
               <svg className="icon" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
                 <path d="M6 2h9l3 3v17H6z" strokeLinejoin="round" />
                 <path d="M9.5 12h5M9.5 15.5h5M9.5 8.5h2" />

@@ -9,7 +9,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <ToastProvider>
       <div className="app">
         <Sidebar
-          brandName="CoachOS"
           brandSub="Espace Admin"
           sections={adminNavSections}
           footer={

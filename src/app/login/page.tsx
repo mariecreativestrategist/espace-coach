@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { BrandMark } from "@/components/shared/BrandMark";
+import { SITE_NAME } from "@/lib/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,19 +50,11 @@ export default function LoginPage() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div className="card" style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ padding: "32px 28px 8px", textAlign: "center" }}>
-          <div
-            style={{
-              width: 44, height: 44, borderRadius: 12, background: "var(--grad-signature)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 0 24px rgba(61,220,132,.35)", margin: "0 auto 16px",
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" style={{ width: 22, height: 22, stroke: "#07100c", strokeWidth: 2.2 }}>
-              <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" strokeLinejoin="round" />
-            </svg>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <BrandMark />
           </div>
           <div className="font-display" style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>
-            CoachOS
+            {SITE_NAME}
           </div>
           <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>Connexion à ton espace</div>
         </div>

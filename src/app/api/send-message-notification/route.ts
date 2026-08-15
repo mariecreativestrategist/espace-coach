@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SITE_NAME } from "@/lib/config";
 
 /**
  * Envoie un email de notification via Resend quand un client écrit dans la
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       from,
       to,
-      subject: `Nouveau message de ${senderName ?? "un client"} sur CoachOS`,
+      subject: `Nouveau message de ${senderName ?? "un client"} sur ${SITE_NAME}`,
       text: text ?? "",
     }),
   });

@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/shared/BrandMark";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/config";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 text-center">
-      <div>
+      <div className="flex flex-col items-center gap-3">
+        <BrandMark />
         <div className="font-display text-3xl font-bold" style={{ letterSpacing: "-0.02em" }}>
-          CoachOS
+          {SITE_NAME}
         </div>
         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          Plateforme de gestion pour coachs sportifs.
+          {SITE_TAGLINE}
         </p>
       </div>
       <div className="flex flex-col items-center gap-4">

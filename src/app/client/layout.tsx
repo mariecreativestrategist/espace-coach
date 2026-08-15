@@ -10,7 +10,6 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     <ToastProvider>
       <div className="app client-shell">
         <Sidebar
-          brandName="CoachOS"
           brandSub="Espace Client"
           sections={clientNavSections}
           footer={<ClientSidebarFooter />}

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { BrandMark } from "@/components/shared/BrandMark";
+import { SITE_NAME } from "@/lib/config";
 
 export interface NavItem {
   href: string;
@@ -17,12 +19,10 @@ export interface NavSection {
 }
 
 export function Sidebar({
-  brandName,
   brandSub,
   sections,
   footer,
 }: {
-  brandName: string;
   brandSub: string;
   sections: NavSection[];
   footer: ReactNode;
@@ -32,13 +32,9 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" strokeLinejoin="round" />
-          </svg>
-        </div>
+        <BrandMark />
         <div>
-          <div className="brand-name">{brandName}</div>
+          <div className="brand-name">{SITE_NAME}</div>
           <div className="brand-sub">{brandSub}</div>
         </div>
       </div>

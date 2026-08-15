@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/config";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -21,8 +22,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CoachOS",
-  description: "Plateforme de gestion pour coachs sportifs",
+  title: SITE_NAME,
+  description: SITE_TAGLINE,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
