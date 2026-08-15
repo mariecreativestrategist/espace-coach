@@ -81,8 +81,10 @@ export default function MaSectionPage() {
 
 ## 4. Remplacer les données de démonstration par de vraies données
 
-Aujourd'hui, chaque page lit des données statiques depuis :
-- [`src/lib/mock/admin-data.ts`](../src/lib/mock/admin-data.ts) (clients, exercices, RDV, tâches, factures)
+Deux pages sont déjà entièrement branchées sur Supabase et servent de modèle concret à suivre : [`src/app/admin/exercices/page.tsx`](../src/app/admin/exercices/page.tsx) (avec upload de fichier vers Supabase Storage) et [`src/app/admin/todo/page.tsx`](../src/app/admin/todo/page.tsx) (CRUD simple). Les deux gardent un mode de repli sur les données de démo (`isSupabaseConfigured` depuis `src/lib/supabase/storage.ts`) quand aucun projet Supabase n'est configuré — reprends ce même pattern pour les autres pages.
+
+Le reste des pages lit encore des données statiques depuis :
+- [`src/lib/mock/admin-data.ts`](../src/lib/mock/admin-data.ts) (clients, RDV, factures)
 - [`src/lib/mock/client-data.ts`](../src/lib/mock/client-data.ts) (point de vue d'un client connecté)
 
 Pour brancher une page sur Supabase :

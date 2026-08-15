@@ -3,10 +3,66 @@
 import { useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { useToast } from "@/components/shared/ToastProvider";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminReglagesPage() {
   const showToast = useToast();
   const [twoFactor, setTwoFactor] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  async function savePassword() {
+    setPasswordError(null);
+
+    if (!currentPassword || !newPassword) return;
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("Le nouveau mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+
+    setSavingPassword(true);
+    const supabase = createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.email) {
+      setPasswordError("Session expirée, reconnecte-toi.");
+      setSavingPassword(false);
+      return;
+    }
+
+    // Vérifie le mot de passe actuel avant d'appliquer le changement.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (reauthError) {
+      setPasswordError("Mot de passe actuel incorrect.");
+      setSavingPassword(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (updateError) {
+      setPasswordError(updateError.message);
+      return;
+    }
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    showToast("Mot de passe mis à jour");
+  }
 
   return (
     <PageShell title="Paramètres" subtitle="Gérez votre profil et vos préférences" search="Rechercher un client, une facture…" avatarInitials="MG">
@@ -55,16 +111,39 @@ export default function AdminReglagesPage() {
             <div className="form-grid">
               <div className="form-group full">
                 <label>Mot de passe actuel</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
               </div>
               <div className="form-group">
                 <label>Nouveau mot de passe</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
               </div>
               <div className="form-group">
                 <label>Confirmer le mot de passe</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </div>
+            </div>
+            {passwordError && (
+              <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{passwordError}</div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+              <button className="btn btn-primary btn-sm" type="button" onClick={savePassword} disabled={savingPassword}>
+                {savingPassword ? "Enregistrement…" : "Changer le mot de passe"}
+              </button>
             </div>
             <div className="setting-row" style={{ marginTop: 6 }}>
               <div>
@@ -85,7 +164,7 @@ export default function AdminReglagesPage() {
           <button className="btn btn-ghost" type="button">
             Annuler
           </button>
-          <button className="btn btn-primary" type="button" onClick={() => showToast("Modifications enregistrées")}>
+          <button className="btn btn-primary" type="button" onClick={() => showToast("Profil enregistré")}>
             Enregistrer les modifications
           </button>
         </div>

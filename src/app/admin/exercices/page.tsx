@@ -1,24 +1,77 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import { exercisesSeed, type ExerciseItem, type ExerciseMedia } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase/storage";
 
 const muscleGroups = ["Jambes", "Dos", "Pectoraux", "Épaules", "Bras", "Core", "Cardio", "Full Body"];
 
+function mediaTypeToDb(type: "video" | "image"): "vidéo" | "photo" {
+  return type === "video" ? "vidéo" : "photo";
+}
+function mediaTypeFromDb(type: string | null): "video" | "image" | null {
+  if (type === "vidéo") return "video";
+  if (type === "photo") return "image";
+  return null;
+}
+
 export default function AdminExercicesPage() {
   const showToast = useToast();
-  const [exercises, setExercises] = useState(exercisesSeed);
+  const [exercises, setExercises] = useState<ExerciseItem[]>(isSupabaseConfigured ? [] : exercisesSeed);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [coachId, setCoachId] = useState<string | null>(null);
   const [nextId, setNextId] = useState(11);
   const [filter, setFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
   const [group, setGroup] = useState(muscleGroups[0]!);
   const [description, setDescription] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      setCoachId(user.id);
+      const { data, error } = await supabase
+        .from("exercises")
+        .select("*")
+        .eq("coach_id", user.id)
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        showToast("Impossible de charger les exercices.");
+      } else if (data) {
+        setExercises(
+          data.map((row) => ({
+            id: row.id as unknown as number,
+            name: row.nom,
+            group: row.groupe_musculaire,
+            description: row.consignes ?? "",
+            media: row.media_url
+              ? { type: mediaTypeFromDb(row.media_type) ?? "image", name: row.media_url }
+              : null,
+          })),
+        );
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const groups = useMemo(() => [...new Set(exercises.map((e) => e.group))], [exercises]);
   const filtered = filter === "all" ? exercises : exercises.filter((e) => e.group === filter);
@@ -31,24 +84,94 @@ export default function AdminExercicesPage() {
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    let media: ExerciseMedia = null;
-    if (mediaFile) {
-      media = { type: mediaFile.type.startsWith("video") ? "video" : "image", name: mediaFile.name };
+
+    if (!isSupabaseConfigured) {
+      let media: ExerciseMedia = null;
+      if (mediaFile) {
+        media = { type: mediaFile.type.startsWith("video") ? "video" : "image", name: mediaFile.name };
+      }
+      setExercises((prev) => [...prev, { id: nextId, name: trimmed, group, description: description.trim(), media }]);
+      setNextId((n) => n + 1);
+      setModalOpen(false);
+      showToast("Exercice ajouté à la bibliothèque");
+      return;
     }
-    const item: ExerciseItem = { id: nextId, name: trimmed, group, description: description.trim(), media };
-    setExercises((prev) => [...prev, item]);
-    setNextId((n) => n + 1);
+
+    if (!coachId) return;
+    setSaving(true);
+    const supabase = createClient();
+
+    let mediaUrl: string | null = null;
+    let mediaType: "vidéo" | "photo" | null = null;
+    if (mediaFile) {
+      const path = `exercises/${coachId}/${Date.now()}-${mediaFile.name}`;
+      const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, mediaFile);
+      if (uploadError) {
+        showToast("Échec de l'upload du média.");
+        setSaving(false);
+        return;
+      }
+      const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      mediaUrl = publicUrl.publicUrl;
+      mediaType = mediaTypeToDb(mediaFile.type.startsWith("video") ? "video" : "image");
+    }
+
+    const { data, error } = await supabase
+      .from("exercises")
+      .insert({
+        coach_id: coachId,
+        nom: trimmed,
+        groupe_musculaire: group,
+        consignes: description.trim(),
+        media_url: mediaUrl,
+        media_type: mediaType,
+      })
+      .select()
+      .single();
+
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter l'exercice.");
+      return;
+    }
+
+    setExercises((prev) => [
+      ...prev,
+      {
+        id: data.id as unknown as number,
+        name: data.nom,
+        group: data.groupe_musculaire,
+        description: data.consignes ?? "",
+        media: data.media_url ? { type: mediaTypeFromDb(data.media_type) ?? "image", name: data.media_url } : null,
+      },
+    ]);
     setModalOpen(false);
     showToast("Exercice ajouté à la bibliothèque");
   }
 
-  function deleteExercise(id: number) {
+  async function deleteExercise(id: number) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("exercises").delete().eq("id", id as unknown as string);
+      if (error) {
+        showToast("Impossible de supprimer l'exercice.");
+        return;
+      }
+    }
     setExercises((prev) => prev.filter((e) => e.id !== id));
     showToast("Exercice supprimé");
+  }
+
+  function openMedia(ex: ExerciseItem) {
+    if (isSupabaseConfigured && ex.media && /^https?:\/\//.test(ex.media.name)) {
+      window.open(ex.media.name, "_blank");
+    } else if (ex.media) {
+      showToast(`Aperçu : ${ex.media.name}`);
+    }
   }
 
   return (
@@ -77,7 +200,12 @@ export default function AdminExercicesPage() {
       </div>
 
       <div className="exercise-grid">
-        {filtered.length === 0 && (
+        {loading && (
+          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "50px 20px", color: "var(--text-muted)", fontSize: 13.5 }}>
+            Chargement…
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
           <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "50px 20px", color: "var(--text-muted)", fontSize: 13.5 }}>
             Aucun exercice dans cette catégorie.
           </div>
@@ -101,12 +229,7 @@ export default function AdminExercicesPage() {
               {ex.description || "Aucune consigne particulière."}
             </div>
             {ex.media ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                style={{ marginTop: 10 }}
-                onClick={() => showToast(`Aperçu : ${ex.media!.name}`)}
-              >
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => openMedia(ex)}>
                 <svg className="icon" viewBox="0 0 24 24" style={{ width: 13, height: 13 }}>
                   {ex.media.type === "video" ? (
                     <>
@@ -166,8 +289,8 @@ export default function AdminExercicesPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter l&apos;exercice
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter l'exercice"}
             </button>
           </div>
         </form>

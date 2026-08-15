@@ -268,11 +268,12 @@ Ces points pourront faire l'objet d'un lot ultérieur.
 ---
 ## 10. État d'avancement
 
-- ✅ Schéma Supabase (tables + RLS) — [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql)
+- ✅ Schéma Supabase (tables + RLS + bucket Storage) — [`supabase/schema.sql`](../supabase/schema.sql)
 - ✅ Design system partagé (admin + client)
-- ✅ Espace Admin : 8 pages, pixel-perfect, données de démonstration
-- ✅ Espace Client : 8 pages, pixel-perfect, données de démonstration
-- ⬜ Authentification réelle (Supabase Auth, parcours coach / client)
-- ⬜ Connexion des pages aux vraies données Supabase (actuellement `src/lib/mock/`)
-- ⬜ Upload de fichiers réel (Supabase Storage : photos, PDF, médias d'exercices)
-- ⬜ Emails transactionnels (Resend)
+- ✅ Espace Admin : 8 pages, pixel-perfect
+- ✅ Espace Client : 8 pages, pixel-perfect
+- ✅ Authentification réelle (Supabase Auth) — connexion, déconnexion, changement de mot de passe, routes protégées, compte coach de démo
+- ✅ Emails transactionnels (Resend) — notification au coach quand un client écrit un message
+- 🚧 Connexion des pages aux vraies données Supabase — fait pour Exercices (+ upload Storage réel) et To-do list ; Dashboard, Clients, Planning, Administratif et tout l'espace Client restent sur `src/lib/mock/` pour l'instant
+- ⬜ Deuxième parcours d'authentification pour les clients (seul le compte coach est seedé aujourd'hui)
+- ⬜ Upload réel pour les photos de suivi client et les PDF de plan alimentaire

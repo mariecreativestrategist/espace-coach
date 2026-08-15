@@ -8,17 +8,24 @@ export default function Home() {
           CoachOS
         </div>
         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          L&apos;authentification n&apos;est pas encore branchée — accès direct temporaire aux
-          deux espaces.
+          Plateforme de gestion pour coachs sportifs.
         </p>
       </div>
-      <div className="flex gap-4">
-        <Link href="/admin/dashboard" className="btn btn-primary">
-          Espace Admin
+      <div className="flex flex-col items-center gap-4">
+        <Link href="/login" className="btn btn-primary">
+          Se connecter
         </Link>
-        <Link href="/client/dashboard" className="btn btn-ghost">
-          Espace Client
-        </Link>
+        <p className="text-xs" style={{ color: "var(--text-muted)", maxWidth: 320 }}>
+          Projet Supabase pas encore configuré ? Tu peux explorer le design directement, sans
+          compte :{" "}
+          <Link href="/admin/dashboard" style={{ color: "var(--accent-green)" }}>
+            espace admin
+          </Link>{" "}
+          ·{" "}
+          <Link href="/client/dashboard" style={{ color: "var(--accent-green)" }}>
+            espace client
+          </Link>
+        </p>
       </div>
     </div>
   );

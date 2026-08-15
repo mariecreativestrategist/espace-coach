@@ -35,11 +35,13 @@ export interface Database {
           email: string;
         };
         Update: Partial<Database["public"]["Tables"]["coaches"]["Row"]>;
+        Relationships: [];
       };
       clients: {
         Row: {
           id: string;
           coach_id: string;
+          auth_user_id: string | null;
           nom: string;
           email: string;
           telephone: string | null;
@@ -60,6 +62,7 @@ export interface Database {
           email: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Row"]>;
+        Relationships: [];
       };
       goals: {
         Row: {
@@ -75,6 +78,7 @@ export interface Database {
           titre: string;
         };
         Update: Partial<Database["public"]["Tables"]["goals"]["Row"]>;
+        Relationships: [];
       };
       exercises: {
         Row: {
@@ -94,6 +98,7 @@ export interface Database {
           groupe_musculaire: string;
         };
         Update: Partial<Database["public"]["Tables"]["exercises"]["Row"]>;
+        Relationships: [];
       };
       workouts: {
         Row: {
@@ -113,6 +118,7 @@ export interface Database {
           semaine_cycle: string;
         };
         Update: Partial<Database["public"]["Tables"]["workouts"]["Row"]>;
+        Relationships: [];
       };
       workout_exercises: {
         Row: {
@@ -128,6 +134,7 @@ export interface Database {
           workout_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["workout_exercises"]["Row"]>;
+        Relationships: [];
       };
       measurement_fields: {
         Row: {
@@ -145,6 +152,7 @@ export interface Database {
           unite: string;
         };
         Update: Partial<Database["public"]["Tables"]["measurement_fields"]["Row"]>;
+        Relationships: [];
       };
       measurements: {
         Row: {
@@ -160,6 +168,7 @@ export interface Database {
           valeurs: Record<string, number | string>;
         };
         Update: Partial<Database["public"]["Tables"]["measurements"]["Row"]>;
+        Relationships: [];
       };
       client_photos: {
         Row: {
@@ -178,6 +187,7 @@ export interface Database {
           auteur: MessageAuteur;
         };
         Update: Partial<Database["public"]["Tables"]["client_photos"]["Row"]>;
+        Relationships: [];
       };
       health_questions: {
         Row: {
@@ -196,6 +206,7 @@ export interface Database {
           type: QuestionType;
         };
         Update: Partial<Database["public"]["Tables"]["health_questions"]["Row"]>;
+        Relationships: [];
       };
       nutrition_files: {
         Row: {
@@ -212,6 +223,7 @@ export interface Database {
           url: string;
         };
         Update: Partial<Database["public"]["Tables"]["nutrition_files"]["Row"]>;
+        Relationships: [];
       };
       appointments: {
         Row: {
@@ -236,6 +248,7 @@ export interface Database {
           mode: AppointmentMode;
         };
         Update: Partial<Database["public"]["Tables"]["appointments"]["Row"]>;
+        Relationships: [];
       };
       conversations: {
         Row: {
@@ -250,6 +263,7 @@ export interface Database {
           coach_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
+        Relationships: [];
       };
       messages: {
         Row: {
@@ -267,6 +281,7 @@ export interface Database {
           contenu: string;
         };
         Update: Partial<Database["public"]["Tables"]["messages"]["Row"]>;
+        Relationships: [];
       };
       invoices: {
         Row: {
@@ -291,6 +306,7 @@ export interface Database {
           date: string;
         };
         Update: Partial<Database["public"]["Tables"]["invoices"]["Row"]>;
+        Relationships: [];
       };
       tasks: {
         Row: {
@@ -308,7 +324,12 @@ export interface Database {
           texte: string;
         };
         Update: Partial<Database["public"]["Tables"]["tasks"]["Row"]>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

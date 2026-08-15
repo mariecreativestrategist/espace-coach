@@ -4,9 +4,14 @@ Plateforme de gestion pour coachs sportifs indépendants : un **espace admin** p
 
 - **Frontend** : Next.js (App Router) · TypeScript · Tailwind CSS v4
 - **Backend** : Supabase (Postgres, Auth, Storage)
+- **Emails** : Resend
 - **Déploiement** : Vercel
 
-> Pour rebrander le design, adapter la navigation ou brancher tes propres données, voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
+> 🚀 **Tu veux juste mettre le site en ligne, sans coder ?** Suis [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) — tout se fait depuis le navigateur, aucun terminal requis.
+>
+> 🎨 **Tu veux rebrander le design ou adapter la navigation ?** Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
+
+Le reste de ce README s'adresse à celles et ceux qui veulent faire tourner le projet en local pour développer dessus.
 
 ---
 
@@ -14,7 +19,7 @@ Plateforme de gestion pour coachs sportifs indépendants : un **espace admin** p
 
 - [Node.js](https://nodejs.org/) 20 ou plus récent
 - Un compte [Supabase](https://supabase.com/) (gratuit) pour la base de données et l'authentification
-- (Optionnel, pour la facturation par email) un compte [Resend](https://resend.com/)
+- Un compte [Resend](https://resend.com/) (gratuit, optionnel) pour les notifications par email
 
 ## 2. Installation
 
@@ -27,7 +32,7 @@ npm install
 ## 3. Configurer Supabase
 
 1. Crée un nouveau projet sur [supabase.com](https://supabase.com/dashboard).
-2. Dans **Project Settings → API**, récupère :
+2. Dans **Project Settings → Data API**, récupère :
    - `Project URL`
    - la clé `anon public`
    - la clé `service_role` (secrète — ne jamais l'exposer côté client)
@@ -43,19 +48,25 @@ npm install
    NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxxx
    SUPABASE_SERVICE_ROLE_KEY=xxxxx
+
    RESEND_API_KEY=xxxxx
+   RESEND_FROM_EMAIL=CoachOS <onboarding@resend.dev>
+   COACH_NOTIFICATION_EMAIL=ton-email@exemple.com
    ```
 
-5. Applique le schéma de base de données. Le plus simple est de coller le contenu de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) dans l'éditeur SQL du dashboard Supabase (**SQL Editor → New query**), puis de l'exécuter.
+5. Applique le schéma de base de données : colle le contenu de [`supabase/schema.sql`](supabase/schema.sql) dans l'éditeur SQL du dashboard Supabase (**SQL Editor → New query**), puis exécute-le (**Run**).
 
-   Si tu utilises la [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), tu peux aussi faire :
+   Si tu utilises la [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), tu peux aussi appliquer les migrations une par une depuis `supabase/migrations/` :
 
    ```bash
    supabase link --project-ref <ton-project-ref>
    supabase db push
    ```
 
-Ce script crée les 16 tables du modèle de données (coachs, clients, séances, exercices, RDV, messages, factures…) avec la Row Level Security déjà configurée : chaque coach ne voit que ses propres clients, et chaque client ne voit que ses propres données.
+Ce script crée les 16 tables du modèle de données avec la Row Level Security (chaque coach ne voit que ses propres clients, chaque client ne voit que ses propres données), un bucket de stockage (`coachos-uploads`) avec ses policies, et un **compte coach de démonstration** :
+
+- Email : `admin@exemple.com`
+- Mot de passe : `changeme123` *(à changer immédiatement depuis Réglages une fois connecté)*
 
 ## 4. Lancer le projet en local
 
@@ -63,20 +74,31 @@ Ce script crée les 16 tables du modèle de données (coachs, clients, séances,
 npm run dev
 ```
 
-Ouvre [http://localhost:3000](http://localhost:3000). Tant que l'authentification n'est pas mise en place côté compte, la page d'accueil propose un accès direct aux deux espaces :
+Ouvre [http://localhost:3000](http://localhost:3000) et clique **Se connecter** (identifiants ci-dessus).
 
-- **Espace Admin** → `/admin/dashboard`
-- **Espace Client** → `/client/dashboard`
+Si `.env.local` n'est pas encore configuré, l'app tourne automatiquement en **mode démo** : pas de connexion requise, accès direct à `/admin/dashboard` et `/client/dashboard` avec des données d'exemple (voir `src/lib/mock/`) — pratique pour explorer le design sans compte Supabase.
 
-Ces deux espaces fonctionnent aujourd'hui sur des **données de démonstration** (voir `src/lib/mock/`), ce qui permet de voir tout le design et toutes les interactions sans avoir de compte Supabase configuré. Pour les brancher sur de vraies données, voir la section correspondante dans [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
+## 5. Ce qui est réellement branché à Supabase aujourd'hui
 
-## 5. Structure du projet
+| Fonctionnalité | État |
+|---|---|
+| Connexion / déconnexion, changement de mot de passe | ✅ réel |
+| Bibliothèque d'Exercices (lecture, ajout, upload photo/vidéo) | ✅ réel |
+| To-do list (lecture, ajout, coché, suppression) | ✅ réel |
+| Notification email quand un client écrit un message | ✅ réel (via Resend) |
+| Dashboard, Clients, Planning, Administratif, espace Client | 🚧 données de démonstration (`src/lib/mock/`) |
+
+Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md#4-remplacer-les-données-de-démonstration-par-de-vraies-données) pour brancher le reste des pages sur Supabase, module par module.
+
+## 6. Structure du projet
 
 ```
 src/
   app/
     admin/          → les 8 pages de l'espace coach (Dashboard, Clients, Planning…)
     client/          → les 8 pages de l'espace client (Tableau de bord, Programme…)
+    login/           → page de connexion
+    api/              → routes serveur (ex: notification email)
     globals.css      → design system partagé (couleurs, composants)
   components/shared/  → Sidebar, Topbar, Modal, Toast… composants réutilisés partout
   config/              → définition des menus de navigation admin / client
@@ -84,26 +106,28 @@ src/
     mock/              → données de démonstration (à remplacer par Supabase)
     supabase/          → clients Supabase (browser / server / middleware) + types
   styles/client.css     → particularités visuelles de l'espace client
-supabase/migrations/    → schéma SQL (tables + RLS) à appliquer sur ton projet Supabase
+  proxy.ts               → middleware : protège /admin et /client, gère les redirections
+supabase/
+  schema.sql              → script unique (tables + RLS + démo + storage) pour un déploiement rapide
+  migrations/              → le même schéma, découpé fichier par fichier pour la Supabase CLI
 ```
 
-## 6. Déploiement (Vercel)
+## 7. Déploiement (Vercel)
+
+Voir le guide pas-à-pas [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md). En résumé :
 
 1. Pousse le projet sur GitHub.
 2. Importe le repo sur [vercel.com/new](https://vercel.com/new).
-3. Renseigne les mêmes variables d'environnement que dans `.env.local` (Project Settings → Environment Variables).
+3. Renseigne les mêmes variables d'environnement que dans `.env.local`.
 4. Déploie.
 
-## 7. Prochaines étapes
+## 8. Prochaines étapes
 
-Ce socle couvre le design complet des deux espaces avec des données de démonstration. Les étapes suivantes pour un projet en production :
+1. Finir de connecter les pages restantes à Supabase (voir tableau §5)
+2. Upload réel pour les photos de suivi client et les PDF de plan alimentaire
+3. Deuxième parcours de connexion pour les clients (aujourd'hui seul le compte coach est seedé)
 
-1. Authentification réelle (Supabase Auth, deux parcours coach / client)
-2. Remplacer les données de `src/lib/mock/` par de vraies requêtes Supabase
-3. Upload de fichiers (photos, PDF, médias d'exercices) via Supabase Storage
-4. Emails transactionnels (Resend) pour les notifications importantes
-
-## 8. Licence
+## 9. Licence
 
 Ce projet est distribué sous licence propriétaire — voir [`LICENSE`](LICENSE). Le dépôt est visible publiquement mais son usage est soumis à autorisation ; contacte marie.creativestrategist@gmail.com pour toute demande.
 

@@ -30,6 +30,14 @@ export default function ClientMessageriePage() {
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     setMessages((prev) => [...prev, { from: "out", text, time }]);
     setDraft("");
+
+    fetch("/api/send-message-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senderName: profile.name, text }),
+    }).catch(() => {
+      // Notification best-effort : un échec d'email ne doit pas bloquer l'envoi du message.
+    });
   }
 
   return (

@@ -1,23 +1,72 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
-import { tasksSeed, formatDateShort, type TaskPriority } from "@/lib/mock/admin-data";
+import { tasksSeed, formatDateShort, type AdminTask, type TaskPriority } from "@/lib/mock/admin-data";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
 
 type Filter = "all" | "pending" | "done";
 
+function priorityToDb(p: TaskPriority): "normale" | "urgente" {
+  return p === "urgent" ? "urgente" : "normale";
+}
+function priorityFromDb(p: "normale" | "urgente"): TaskPriority {
+  return p === "urgente" ? "urgent" : "normal";
+}
+
 export default function AdminTodoPage() {
   const showToast = useToast();
-  const [tasks, setTasks] = useState(tasksSeed);
+  const [tasks, setTasks] = useState<AdminTask[]>(isSupabaseConfigured ? [] : tasksSeed);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [coachId, setCoachId] = useState<string | null>(null);
   const [nextId, setNextId] = useState(7);
   const [filter, setFilter] = useState<Filter>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [text, setText] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      setCoachId(user.id);
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("coach_id", user.id)
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        showToast("Impossible de charger les tâches.");
+      } else if (data) {
+        setTasks(
+          data.map((row) => ({
+            id: row.id as unknown as number,
+            text: row.texte,
+            done: row.fait,
+            priority: priorityFromDb(row.priorite),
+            due: row.echeance ? formatDateShort(row.echeance) : "Sans échéance",
+          })),
+        );
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pending = tasks.filter((t) => !t.done).length;
   const urgent = tasks.filter((t) => t.priority === "urgent" && !t.done).length;
@@ -25,11 +74,27 @@ export default function AdminTodoPage() {
 
   const filtered = filter === "pending" ? tasks.filter((t) => !t.done) : filter === "done" ? tasks.filter((t) => t.done) : tasks;
 
-  function toggleTask(id: number) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  async function toggleTask(id: number) {
+    const target = tasks.find((t) => t.id === id);
+    if (!target) return;
+    const nowDone = !target.done;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nowDone } : t)));
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("tasks").update({ fait: nowDone }).eq("id", id as unknown as string);
+      if (error) showToast("La mise à jour n'a pas pu être enregistrée.");
+    }
   }
 
-  function deleteTask(id: number) {
+  async function deleteTask(id: number) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { error } = await supabase.from("tasks").delete().eq("id", id as unknown as string);
+      if (error) {
+        showToast("Impossible de supprimer la tâche.");
+        return;
+      }
+    }
     setTasks((prev) => prev.filter((t) => t.id !== id));
     showToast("Tâche supprimée");
   }
@@ -41,12 +106,36 @@ export default function AdminTodoPage() {
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed) return;
-    setTasks((prev) => [...prev, { id: nextId, text: trimmed, done: false, priority, due: formatDateShort(due) }]);
-    setNextId((n) => n + 1);
+
+    if (!isSupabaseConfigured) {
+      setTasks((prev) => [...prev, { id: nextId, text: trimmed, done: false, priority, due: formatDateShort(due) }]);
+      setNextId((n) => n + 1);
+      setModalOpen(false);
+      showToast("Tâche ajoutée");
+      return;
+    }
+
+    if (!coachId) return;
+    setSaving(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({ coach_id: coachId, texte: trimmed, priorite: priorityToDb(priority), echeance: due || null })
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("Impossible d'ajouter la tâche.");
+      return;
+    }
+    setTasks((prev) => [
+      ...prev,
+      { id: data.id as unknown as number, text: data.texte, done: data.fait, priority: priorityFromDb(data.priorite), due: data.echeance ? formatDateShort(data.echeance) : "Sans échéance" },
+    ]);
     setModalOpen(false);
     showToast("Tâche ajoutée");
   }
@@ -88,7 +177,12 @@ export default function AdminTodoPage() {
 
       <div className="card">
         <div className="card-body">
-          {filtered.length === 0 && (
+          {loading && (
+            <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "30px 0", textAlign: "center" }}>
+              Chargement…
+            </div>
+          )}
+          {!loading && filtered.length === 0 && (
             <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "30px 0", textAlign: "center" }}>
               Aucune tâche dans cette catégorie.
             </div>
@@ -150,8 +244,8 @@ export default function AdminTodoPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Ajouter la tâche
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Ajout…" : "Ajouter la tâche"}
             </button>
           </div>
         </form>
