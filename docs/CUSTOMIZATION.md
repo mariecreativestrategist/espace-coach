@@ -1,151 +1,127 @@
-# Personnaliser CoachOS
+# Personnaliser le site — guide complet
 
-Ce guide part du principe que le projet tourne déjà en local (voir le [README](../README.md)). Toutes les manipulations ci-dessous se font dans le code, pas besoin d'outil externe.
+Ce guide explique comment adapter le site à ton identité (nom, logo, couleurs) et changer ton mot de passe. Tout se fait **depuis le navigateur, sur GitHub** — pas besoin d'installer quoi que ce soit sur ton ordinateur ni de savoir coder.
+
+Le principe est toujours le même :
+
+1. Tu ouvres le fichier concerné sur GitHub.
+2. Tu cliques sur l'icône crayon (✏️) en haut à droite du fichier, pour l'éditer directement dans le navigateur.
+3. Tu modifies la valeur.
+4. Tu cliques sur **"Commit changes..."** (en bas de page) pour enregistrer.
+5. Si le site est connecté à Vercel, il se **remet à jour tout seul** 1 à 2 minutes après.
+
+> Tu veux d'abord mettre le site en ligne ? Suis [docs/DEPLOIEMENT.md](DEPLOIEMENT.md).
 
 ---
 
-## 1. Changer les couleurs / le branding
+## 1. Changer le mot de passe du compte coach
 
-Tout le design system vit dans un seul fichier : [`src/app/globals.css`](../src/app/globals.css), en haut du fichier dans le bloc `:root`.
+Ça, ça ne se passe **pas sur GitHub** mais directement sur le site :
 
-```css
-:root {
-  --bg-void: #07100c;        /* fond général */
-  --bg-surface: #0f1913;     /* fond des cartes */
-  --accent-green: #3ddc84;   /* couleur signature */
-  --accent-lime: #c3ff5c;    /* accent secondaire */
-  --grad-signature: linear-gradient(135deg, #0c3d26 0%, #1c8f57 45%, #c3ff5c 100%);
-  /* … */
-}
-```
+1. Connecte-toi à ton espace admin.
+2. Va dans **Réglages** (menu de gauche, tout en bas).
+3. Dans la carte **"Sécurité"**, renseigne ton mot de passe actuel puis le nouveau.
+4. Clique sur **"Changer le mot de passe"**.
 
-Change ces valeurs et **toute l'application se met à jour** (boutons, barres de progression, logo, badges) — ces variables sont utilisées partout, aucune couleur n'est codée en dur ailleurs dans les composants.
+C'est valable aussi pour les comptes clients : chacun peut changer son mot de passe depuis son propre espace (en bas du menu de gauche, bouton "Changer le mot de passe").
 
-Le nom de l'app ("CoachOS") apparaît à trois endroits à changer manuellement :
-- [`src/app/layout.tsx`](../src/app/layout.tsx) → `metadata.title`
-- [`src/app/admin/layout.tsx`](../src/app/admin/layout.tsx) → prop `brandName` du `<Sidebar>`
-- [`src/app/client/layout.tsx`](../src/app/client/layout.tsx) → idem
+## 2. Changer le nom du site
 
-## 2. Changer les polices
+Le nom affiché partout (barre latérale, page de connexion, titre de l'onglet du navigateur, emails) vient d'un seul fichier :
 
-Les 3 polices (Space Grotesk, Inter, JetBrains Mono) sont chargées dans [`src/app/layout.tsx`](../src/app/layout.tsx) via `next/font/google`. Pour en changer une, remplace l'import et le nom de la police Google Fonts :
+1. Sur GitHub, ouvre [`src/lib/config.ts`](../src/lib/config.ts).
+2. Clique sur l'icône crayon pour éditer.
+3. Change les valeurs entre guillemets :
 
 ```ts
-import { Poppins } from "next/font/google"; // au lieu de Space_Grotesk
-
-const spaceGrotesk = Poppins({
-  variable: "--font-space-grotesk", // garde ce nom de variable CSS
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+export const SITE_NAME = "CoachOS";
+export const SITE_TAGLINE = "Plateforme de gestion pour coachs sportifs.";
 ```
 
-Le nom de la variable CSS (`--font-space-grotesk`) doit rester identique : c'est lui qui est référencé dans `globals.css`.
+Par exemple, pour un site qui s'appellerait "ProCoach" :
 
-## 3. Modifier la navigation (ajouter / retirer une section)
-
-Les menus latéraux sont définis dans deux fichiers de config, indépendants du reste du code :
-
-- [`src/config/admin-nav.tsx`](../src/config/admin-nav.tsx) — espace admin
-- [`src/config/client-nav.tsx`](../src/config/client-nav.tsx) — espace client
-
-Chaque entrée a la forme :
-
-```tsx
-{
-  href: "/admin/exercices",
-  label: "Exercices",
-  icon: (<svg className="icon" viewBox="0 0 24 24">...</svg>),
-  badgeCount: 10, // optionnel, affiche un badge chiffré
-}
+```ts
+export const SITE_NAME = "ProCoach";
+export const SITE_TAGLINE = "Ton coaching, simplifié.";
 ```
 
-Pour ajouter une page :
-1. Crée le dossier de route, ex. `src/app/admin/ma-section/page.tsx`.
-2. Ajoute l'entrée correspondante dans `admin-nav.tsx`.
-3. Utilise le composant `PageShell` pour hériter automatiquement du topbar (titre, recherche, avatar) :
+⚠️ Garde bien les guillemets `"` et le point-virgule `;` à la fin de chaque ligne — ne change que le texte entre les guillemets.
 
-```tsx
-import { PageShell } from "@/components/shared/PageShell";
+4. Clique sur **"Commit changes..."**.
 
-export default function MaSectionPage() {
-  return (
-    <PageShell title="Ma section" subtitle="Description courte" avatarInitials="MG">
-      <div className="card">
-        <div className="card-body">Contenu de la page…</div>
-      </div>
-    </PageShell>
-  );
-}
+## 3. Changer le logo
+
+Par défaut, le site affiche un petit logo en forme d'éclair généré automatiquement. Pour mettre ton propre logo (image) :
+
+1. Prépare ton image (idéalement un PNG ou SVG avec fond transparent, pas trop large — l'équivalent d'un carré ou d'un rectangle court).
+2. Sur GitHub, ouvre le dossier [`public/`](../public/).
+3. Clique sur **"Add file"** → **"Upload files"**, dépose ton image, puis **"Commit changes..."**.
+4. Note bien le nom exact du fichier que tu viens d'ajouter (ex. `logo.png`).
+5. Ouvre à nouveau [`src/lib/config.ts`](../src/lib/config.ts) et édite (icône crayon) :
+
+```ts
+export const LOGO_IMAGE_PATH: string | null = null;
 ```
 
-## 4. Le pattern "réel avec repli démo" — pour ajouter tes propres pages
+en :
 
-Toutes les pages existantes sont déjà branchées sur Supabase pour de vrai. Chacune garde malgré tout un mode de repli sur des données d'exemple (`src/lib/mock/admin-data.ts` et `client-data.ts`) quand Supabase n'est pas configuré, contrôlé par la constante `isSupabaseConfigured` de [`src/lib/supabase/storage.ts`](../src/lib/supabase/storage.ts) — ça permet d'explorer le design sans compte Supabase, et ça évite qu'une page plante bêtement si une variable d'environnement manque.
-
-Si tu ajoutes une nouvelle page qui a besoin de ses propres données, reprends ce même pattern. Bons exemples à copier : [`src/app/admin/exercices/page.tsx`](../src/app/admin/exercices/page.tsx) (CRUD + upload de fichier vers Storage) et [`src/app/admin/todo/page.tsx`](../src/app/admin/todo/page.tsx) (CRUD simple) côté admin ; [`src/app/client/objectifs/page.tsx`](../src/app/client/objectifs/page.tsx) côté client (passe par le hook [`useCurrentClient`](../src/lib/hooks/useCurrentClient.ts) pour savoir quel client est connecté).
-
-Pour brancher une nouvelle page sur Supabase :
-
-1. Transforme le composant de page en **Server Component async** (ou garde-le client et fais un `fetch` dans un `useEffect` / [`@tanstack/react-query`](https://tanstack.com/query) si tu as besoin d'interactivité immédiate).
-2. Remplace l'import du mock par une requête via le client Supabase serveur :
-
-```tsx
-// avant
-import { clientsSeed } from "@/lib/mock/admin-data";
-
-// après
-import { createClient } from "@/lib/supabase/server";
-
-export default async function AdminClientsPage() {
-  const supabase = await createClient();
-  const { data: clients } = await supabase.from("clients").select("*").order("name");
-  // ...
-}
+```ts
+export const LOGO_IMAGE_PATH: string | null = "/logo.png";
 ```
 
-Les noms de tables et de colonnes du schéma Supabase (voir [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql)) suivent volontairement la même structure que les types dans `src/lib/mock/admin-data.ts`, pour que la bascule soit la plus directe possible.
+(remplace `"logo.png"` par le nom exact de ton fichier, avec un `/` devant).
 
-Les actions qui modifient des données (ajouter un client, cocher une tâche, envoyer un message…) sont aujourd'hui de simples `useState` locaux. Il faudra les convertir en [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data) Next.js qui appellent Supabase, par exemple :
+6. Clique sur **"Commit changes..."**.
 
-```tsx
-"use server";
-import { createClient } from "@/lib/supabase/server";
+Ton logo apparaît désormais dans la barre latérale et sur la page de connexion. Vérifie qu'il reste lisible aussi bien sur fond sombre (barre latérale) que sur fond clair (page de connexion) — un logo avec fond transparent fonctionne dans les deux cas.
 
-export async function toggleTask(taskId: string, done: boolean) {
-  const supabase = await createClient();
-  await supabase.from("tasks").update({ fait: done }).eq("id", taskId);
-}
-```
+Pour revenir au logo par défaut, remets `LOGO_IMAGE_PATH` à `null`.
 
-## 5. Authentification
+## 4. Changer les couleurs
 
-Le schéma SQL prévoit déjà la structure (`coaches.id` = `auth.users.id`, `clients.auth_user_id` optionnel) et les policies RLS. Il reste à créer les pages de connexion :
+Toutes les couleurs du site sont regroupées dans un seul fichier : [`src/app/globals.css`](../src/app/globals.css), tout en haut, dans le bloc `:root { ... }`.
 
-1. Utilise [Supabase Auth](https://supabase.com/docs/guides/auth) (email/mot de passe ou magic link).
-2. Crée `src/app/login/page.tsx` (ou deux pages séparées `coach/login` et `client/login`).
-3. Après connexion, redirige vers `/admin/dashboard` ou `/client/dashboard` selon si l'utilisateur existe dans `coaches` ou `clients`.
-4. Le fichier [`src/proxy.ts`](../src/proxy.ts) (middleware Next.js) rafraîchit déjà la session Supabase à chaque requête — tu peux y ajouter la logique de redirection si l'utilisateur n'est pas connecté et tente d'accéder à `/admin/*` ou `/client/*`.
+1. Sur GitHub, ouvre [`src/app/globals.css`](../src/app/globals.css) et clique sur l'icône crayon.
+2. Repère le bloc `:root` en haut du fichier — chaque ligne est une couleur.
+3. Change la valeur hexadécimale (le code du type `#3ddc84`) de la couleur que tu veux modifier. Un outil comme [htmlcolorcodes.com](https://htmlcolorcodes.com/) te permet de choisir une couleur et de récupérer son code hexadécimal.
 
-## 6. Upload de fichiers (photos, PDF, médias d'exercices)
+| Variable | Ce qu'elle colore | Couleur actuelle |
+|---|---|---|
+| `--bg-void` | Fond général du site | `#07100c` (vert très sombre) |
+| `--bg-surface` | Fond des cartes / blocs | `#0f1913` |
+| `--accent-green` | Couleur signature (boutons, logo, liens actifs) | `#3ddc84` |
+| `--accent-lime` | Accent secondaire (dégradés, surlignages) | `#c3ff5c` |
+| `--accent-teal` | Accent tertiaire (badges, graphiques) | `#1fd6c0` |
+| `--danger` | Messages d'erreur, badges "en retard" | `#ff7a7a` |
+| `--warning` | Badges "en attente" | `#f5c451` |
+| `--text-primary` | Texte principal | `#eef3ee` |
+| `--text-secondary` | Texte secondaire | `#a3b4a8` |
+| `--text-muted` | Texte discret (légendes, placeholders) | `#647568` |
 
-Utilise [Supabase Storage](https://supabase.com/docs/guides/storage). Crée un bucket (ex. `client-photos`, `nutrition-files`, `exercise-media`), puis dans le composant concerné :
+⚠️ Juste en dessous de ces couleurs, il y a des variables `-rgb` (par exemple `--accent-green-rgb: 61, 220, 132;`) : ce sont **les mêmes couleurs**, écrites sous forme de triplet de nombres au lieu d'un code hexadécimal. Elles servent à afficher des versions transparentes (halos, badges). **Si tu changes une couleur, mets aussi à jour son triplet `-rgb` juste en dessous avec les nombres correspondants**, sinon certains éléments garderont l'ancienne couleur en transparence.
 
-```tsx
-const { data, error } = await supabase.storage
-  .from("client-photos")
-  .upload(`${clientId}/${file.name}`, file);
-```
+Pour convertir un code hexadécimal en triplet R, G, B : sur [htmlcolorcodes.com](https://htmlcolorcodes.com/), colle ton code hexadécimal, la valeur "RGB" correspondante s'affiche automatiquement (ex. `rgb(61, 220, 132)` → tu ne gardes que `61, 220, 132`).
 
-Stocke ensuite l'URL publique (ou signée) retournée dans la colonne correspondante (`client_photos.url`, `nutrition_files.url`, `exercises.media_url`).
+4. Clique sur **"Commit changes..."**.
 
-## 7. Déployer les changements
+## Récapitulatif
 
-```bash
-npm run build   # vérifie qu'il n'y a pas d'erreur avant de pousser
-git add -A
-git commit -m "..."
-git push
-```
+| Je veux changer... | Où aller |
+|---|---|
+| Mon mot de passe | Site → Réglages → Sécurité |
+| Le nom du site | GitHub → `src/lib/config.ts` → `SITE_NAME` |
+| La phrase sous le nom | GitHub → `src/lib/config.ts` → `SITE_TAGLINE` |
+| Le logo | GitHub → `public/` (upload) puis `src/lib/config.ts` → `LOGO_IMAGE_PATH` |
+| Les couleurs | GitHub → `src/app/globals.css` → bloc `:root` |
 
-Si le repo est connecté à Vercel, chaque push sur la branche principale déclenche un déploiement automatique.
+## Dépannage
+
+**Je ne vois pas l'icône crayon sur GitHub.** Il faut que tu aies un accès en écriture au dépôt (propriétaire ou collaborateur invité). Si le dépôt ne t'appartient pas, fais-en d'abord une copie ("Fork") ou demande à en devenir collaborateur.
+
+**J'ai fait "Commit changes..." mais rien ne change sur le site.** Attends 1 à 2 minutes (le temps que Vercel reconstruise le site), puis vérifie l'onglet **"Deployments"** de ton projet sur [vercel.com](https://vercel.com/) : le déploiement le plus récent doit être marqué "Ready". Fais ensuite un rechargement forcé de la page (Ctrl+Maj+R sur Windows, Cmd+Maj+R sur Mac).
+
+**Je me suis trompé·e, je veux annuler.** Sur GitHub, ouvre le fichier concerné puis l'onglet **"History"** (ou le bouton "Blame") pour retrouver la version précédente et copier son contenu — ou repars simplement du guide ci-dessus pour remettre l'ancienne valeur.
+
+---
+
+Envie d'aller plus loin techniquement (ajouter une page, modifier la navigation, brancher tes propres données) ? C'est couvert dans [docs/DEVELOPMENT.md](DEVELOPMENT.md), destiné à celles et ceux qui développent sur le projet.

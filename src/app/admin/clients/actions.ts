@@ -26,7 +26,7 @@ const defaultMeasurementFields = [
  * Crée un client ET son compte de connexion (Supabase Auth) en une seule
  * opération. Le mot de passe temporaire est renvoyé une seule fois — c'est
  * au coach de le transmettre à son client (pas encore de flux d'invitation
- * par email, voir docs/CUSTOMIZATION.md).
+ * par email, voir docs/DEVELOPMENT.md).
  */
 export async function createClientAccount(input: {
   name: string;

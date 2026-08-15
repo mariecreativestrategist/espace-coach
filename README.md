@@ -9,7 +9,9 @@ Plateforme de gestion pour coachs sportifs indépendants : un **espace admin** p
 
 > 🚀 **Tu veux juste mettre le site en ligne, sans coder ?** Suis [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) — tout se fait depuis le navigateur, aucun terminal requis.
 >
-> 🎨 **Tu veux rebrander le design ou adapter la navigation ?** Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md).
+> 🎨 **Tu veux changer le nom, le logo ou les couleurs ?** Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md) — ça aussi, ça se fait depuis le navigateur.
+>
+> 🛠️ **Tu veux ajouter une page ou brancher tes propres données ?** Voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 Le reste de ce README s'adresse à celles et ceux qui veulent faire tourner le projet en local pour développer dessus.
 
@@ -93,7 +95,7 @@ Toutes les pages des deux espaces (admin et client) lisent et écrivent dans Sup
 
 **Mode démo** : si `.env.local` n'est pas configuré, chaque page bascule automatiquement sur les données d'exemple de `src/lib/mock/` plutôt que de planter — pratique pour explorer le design sans compte Supabase (voir §4). Une fois Supabase configuré, ce mode démo disparaît de lui-même.
 
-Ce qui reste à construire pour un usage en production réel : un flux d'invitation par email pour les clients (aujourd'hui le mot de passe temporaire doit être transmis à la main par le coach), et l'upload réel des justificatifs/médias sur les quelques champs encore optionnels. Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md#4-remplacer-les-données-de-démonstration-par-de-vraies-données) pour la mécanique de branchement, si tu ajoutes de nouvelles pages.
+Ce qui reste à construire pour un usage en production réel : un flux d'invitation par email pour les clients (aujourd'hui le mot de passe temporaire doit être transmis à la main par le coach), et l'upload réel des justificatifs/médias sur les quelques champs encore optionnels. Voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#3-le-pattern-réel-avec-repli-démo--pour-ajouter-tes-propres-pages) pour la mécanique de branchement, si tu ajoutes de nouvelles pages.
 
 ## 6. Structure du projet
 
