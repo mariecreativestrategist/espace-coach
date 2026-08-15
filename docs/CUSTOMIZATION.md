@@ -79,15 +79,13 @@ export default function MaSectionPage() {
 }
 ```
 
-## 4. Remplacer les données de démonstration par de vraies données
+## 4. Le pattern "réel avec repli démo" — pour ajouter tes propres pages
 
-Deux pages sont déjà entièrement branchées sur Supabase et servent de modèle concret à suivre : [`src/app/admin/exercices/page.tsx`](../src/app/admin/exercices/page.tsx) (avec upload de fichier vers Supabase Storage) et [`src/app/admin/todo/page.tsx`](../src/app/admin/todo/page.tsx) (CRUD simple). Les deux gardent un mode de repli sur les données de démo (`isSupabaseConfigured` depuis `src/lib/supabase/storage.ts`) quand aucun projet Supabase n'est configuré — reprends ce même pattern pour les autres pages.
+Toutes les pages existantes sont déjà branchées sur Supabase pour de vrai. Chacune garde malgré tout un mode de repli sur des données d'exemple (`src/lib/mock/admin-data.ts` et `client-data.ts`) quand Supabase n'est pas configuré, contrôlé par la constante `isSupabaseConfigured` de [`src/lib/supabase/storage.ts`](../src/lib/supabase/storage.ts) — ça permet d'explorer le design sans compte Supabase, et ça évite qu'une page plante bêtement si une variable d'environnement manque.
 
-Le reste des pages lit encore des données statiques depuis :
-- [`src/lib/mock/admin-data.ts`](../src/lib/mock/admin-data.ts) (clients, RDV, factures)
-- [`src/lib/mock/client-data.ts`](../src/lib/mock/client-data.ts) (point de vue d'un client connecté)
+Si tu ajoutes une nouvelle page qui a besoin de ses propres données, reprends ce même pattern. Bons exemples à copier : [`src/app/admin/exercices/page.tsx`](../src/app/admin/exercices/page.tsx) (CRUD + upload de fichier vers Storage) et [`src/app/admin/todo/page.tsx`](../src/app/admin/todo/page.tsx) (CRUD simple) côté admin ; [`src/app/client/objectifs/page.tsx`](../src/app/client/objectifs/page.tsx) côté client (passe par le hook [`useCurrentClient`](../src/lib/hooks/useCurrentClient.ts) pour savoir quel client est connecté).
 
-Pour brancher une page sur Supabase :
+Pour brancher une nouvelle page sur Supabase :
 
 1. Transforme le composant de page en **Server Component async** (ou garde-le client et fais un `fetch` dans un `useEffect` / [`@tanstack/react-query`](https://tanstack.com/query) si tu as besoin d'interactivité immédiate).
 2. Remplace l'import du mock par une requête via le client Supabase serveur :

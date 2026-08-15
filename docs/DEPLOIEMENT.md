@@ -96,15 +96,20 @@ Sans étape supplémentaire, Resend n'autorise l'envoi qu'à l'adresse e-mail de
 
 ## Étape 7 — Premiers tests
 
+Le site est maintenant entièrement réel : ce que tu vas faire ci-dessous est vraiment sauvegardé dans ta base Supabase, pas juste affiché à l'écran.
+
 1. Une fois le déploiement terminé, clique sur l'aperçu pour ouvrir le site.
 2. Clique **Se connecter**, entre `admin@exemple.com` / `changeme123`.
 3. Tu arrives sur le Dashboard de l'espace admin. Va dans **Réglages** (menu de gauche) et change immédiatement ce mot de passe.
-4. Teste :
-   - **Exercices** → *Ajouter un exercice*, avec une photo ou vidéo de démonstration → l'exercice doit apparaître dans la grille avec un bouton "Voir la photo/vidéo" qui ouvre bien le fichier.
-   - **To-do list** → ajoute une tâche, coche-la, supprime-la.
-   - Ouvre le site dans un onglet privé/navigation privée, va sur `/client/messagerie` et envoie un message → si Resend est configuré, un e-mail doit arriver à l'adresse mise dans `COACH_NOTIFICATION_EMAIL` en quelques secondes.
-
-> ℹ️ **Ce qui est déjà réellement connecté à la base de données aujourd'hui** : la connexion, la bibliothèque d'Exercices (avec upload de fichiers) et la To-do list. **Ce qui reste, pour l'instant, en démonstration visuelle** (les données ne sont pas encore sauvegardées) : Clients, Planning, Administratif, le Dashboard, et l'ensemble de l'espace Client. C'est la prochaine étape de développement du projet — voir l'état d'avancement dans [`docs/CAHIER-DES-CHARGES.md`](CAHIER-DES-CHARGES.md#10-état-davancement).
+4. Teste côté admin :
+   - **Clients** → *Nouveau client* → un compte de connexion est créé automatiquement, avec un mot de passe temporaire affiché une seule fois (note-le, ou utilise plutôt le client de démo ci-dessous pour tester).
+   - Ouvre la fiche d'un client → onglet **Exercices** ou **Séances** → ajoute un exercice avec une photo/vidéo de démonstration → le fichier doit s'ouvrir en cliquant sur "Voir la photo/vidéo".
+   - **Planning** → ajoute un rendez-vous, marque-le "Réalisée".
+   - **Administratif** → crée une facture.
+5. Teste côté client, dans un onglet privé/navigation privée :
+   - Connecte-toi avec le compte client de démo créé automatiquement par le script SQL : `client@exemple.com` / `changeme123`.
+   - Va sur **Messagerie**, envoie un message → si Resend est configuré, un e-mail doit arriver à l'adresse mise dans `COACH_NOTIFICATION_EMAIL` en quelques secondes.
+   - Va sur **Mon programme**, coche une séance comme réalisée → reviens sur l'espace admin (fiche du client de démo) et vérifie que le changement apparaît bien.
 
 ## Étape 8 (optionnel) — Ton propre nom de domaine
 
@@ -136,7 +141,8 @@ Voir [`docs/CUSTOMIZATION.md`](CUSTOMIZATION.md) — tout se fait aussi depuis l
 ## En cas de blocage
 
 - **Le script SQL échoue** avec une erreur sur `auth.users` : voir l'encadré à la fin de l'étape 2.
-- **Impossible de se connecter avec `admin@exemple.com`** : vérifie dans Supabase (**Table Editor → coaches**) qu'une ligne existe bien pour ce compte, et dans **Authentication → Users** que l'utilisateur `admin@exemple.com` apparaît.
+- **Impossible de se connecter avec `admin@exemple.com` ou `client@exemple.com`** : vérifie dans Supabase (**Table Editor → coaches** ou **clients**) qu'une ligne existe bien pour ce compte, et dans **Authentication → Users** que l'utilisateur apparaît.
+- **Le mot de passe temporaire d'un nouveau client ne fonctionne pas** : vérifie que `SUPABASE_SERVICE_ROLE_KEY` est bien renseignée dans Vercel — c'est cette clé qui permet au serveur de créer le compte de connexion du client au moment où le coach l'ajoute.
 - **Les e-mails ne partent pas** : va sur resend.com → **Emails**, l'historique affiche l'erreur exacte (souvent : domaine non vérifié + tentative d'envoi à une adresse autre que celle de ton compte Resend). Vérifie aussi que `COACH_NOTIFICATION_EMAIL`, `RESEND_API_KEY` et `RESEND_FROM_EMAIL` sont bien renseignées dans Vercel, puis redéploie.
-- **L'upload d'un fichier échoue** dans Exercices : vérifie dans Supabase (**Storage**) que le bucket `coachos-uploads` existe bien et qu'il est marqué "Public".
+- **L'upload d'un fichier échoue** (photo, PDF, média d'exercice) : vérifie dans Supabase (**Storage**) que le bucket `coachos-uploads` existe bien et qu'il est marqué "Public".
 - **Le site affiche la version "démo"** (accès direct sans connexion) même après déploiement : vérifie que les 3 variables `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` sont bien renseignées dans Vercel, puis redéploie — sans elles, l'application tourne volontairement en mode démo plutôt que de planter.

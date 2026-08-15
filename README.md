@@ -63,10 +63,12 @@ npm install
    supabase db push
    ```
 
-Ce script crée les 16 tables du modèle de données avec la Row Level Security (chaque coach ne voit que ses propres clients, chaque client ne voit que ses propres données), un bucket de stockage (`coachos-uploads`) avec ses policies, et un **compte coach de démonstration** :
+Ce script crée les 16 tables du modèle de données avec la Row Level Security (chaque coach ne voit que ses propres clients, chaque client ne voit que ses propres données), un bucket de stockage (`coachos-uploads`) avec ses policies, et deux **comptes de démonstration** liés entre eux :
 
-- Email : `admin@exemple.com`
-- Mot de passe : `changeme123` *(à changer immédiatement depuis Réglages une fois connecté)*
+- Coach : `admin@exemple.com` / `changeme123`
+- Client : `client@exemple.com` / `changeme123`
+
+*(à changer immédiatement depuis Réglages / le bouton de changement de mot de passe une fois connecté)*
 
 ## 4. Lancer le projet en local
 
@@ -80,15 +82,18 @@ Si `.env.local` n'est pas encore configuré, l'app tourne automatiquement en **m
 
 ## 5. Ce qui est réellement branché à Supabase aujourd'hui
 
-| Fonctionnalité | État |
-|---|---|
-| Connexion / déconnexion, changement de mot de passe | ✅ réel |
-| Bibliothèque d'Exercices (lecture, ajout, upload photo/vidéo) | ✅ réel |
-| To-do list (lecture, ajout, coché, suppression) | ✅ réel |
-| Notification email quand un client écrit un message | ✅ réel (via Resend) |
-| Dashboard, Clients, Planning, Administratif, espace Client | 🚧 données de démonstration (`src/lib/mock/`) |
+Toutes les pages des deux espaces (admin et client) lisent et écrivent dans Supabase pour de vrai — plus aucune page n'est cantonnée à des données de démonstration statiques. Ça couvre notamment :
 
-Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md#4-remplacer-les-données-de-démonstration-par-de-vraies-données) pour brancher le reste des pages sur Supabase, module par module.
+- Authentification complète (connexion, déconnexion, changement de mot de passe, routes protégées par rôle)
+- Création d'un client par le coach = création automatique de son compte de connexion (mot de passe temporaire affiché une fois)
+- Les 6 onglets de la fiche client (physique/IMC, questionnaire santé, mensurations + photos, objectifs, plan alimentaire, séances), avec upload réel des fichiers (photos, PDF, médias d'exercices) vers Supabase Storage
+- Planning (RDV réels, datés, filtrés par semaine), Administratif (factures réelles), Messagerie (conversations et messages réels, avec notification email via Resend)
+- Dashboard admin agrégeant les vraies données (KPI, graphique d'évolution, RDV du jour…)
+- Les 8 pages de l'espace client, chacune scopée au client connecté
+
+**Mode démo** : si `.env.local` n'est pas configuré, chaque page bascule automatiquement sur les données d'exemple de `src/lib/mock/` plutôt que de planter — pratique pour explorer le design sans compte Supabase (voir §4). Une fois Supabase configuré, ce mode démo disparaît de lui-même.
+
+Ce qui reste à construire pour un usage en production réel : un flux d'invitation par email pour les clients (aujourd'hui le mot de passe temporaire doit être transmis à la main par le coach), et l'upload réel des justificatifs/médias sur les quelques champs encore optionnels. Voir [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md#4-remplacer-les-données-de-démonstration-par-de-vraies-données) pour la mécanique de branchement, si tu ajoutes de nouvelles pages.
 
 ## 6. Structure du projet
 
@@ -103,8 +108,9 @@ src/
   components/shared/  → Sidebar, Topbar, Modal, Toast… composants réutilisés partout
   config/              → définition des menus de navigation admin / client
   lib/
-    mock/              → données de démonstration (à remplacer par Supabase)
-    supabase/          → clients Supabase (browser / server / middleware) + types
+    mock/              → données de secours utilisées uniquement en mode démo (Supabase non configuré)
+    hooks/               → useCurrentClient (résout le client connecté pour l'espace client)
+    supabase/          → clients Supabase (browser / server / admin / middleware) + types
   styles/client.css     → particularités visuelles de l'espace client
   proxy.ts               → middleware : protège /admin et /client, gère les redirections
 supabase/
@@ -123,9 +129,9 @@ Voir le guide pas-à-pas [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md). En résumé
 
 ## 8. Prochaines étapes
 
-1. Finir de connecter les pages restantes à Supabase (voir tableau §5)
-2. Upload réel pour les photos de suivi client et les PDF de plan alimentaire
-3. Deuxième parcours de connexion pour les clients (aujourd'hui seul le compte coach est seedé)
+1. Flux d'invitation par email pour les nouveaux clients (aujourd'hui : mot de passe temporaire transmis à la main par le coach)
+2. Authentification à deux facteurs (le réglage existe visuellement mais n'est pas encore branché)
+3. Rappels automatiques par email (RDV à venir, facture en retard) — explicitement hors périmètre v1, voir le cahier des charges
 
 ## 9. Licence
 

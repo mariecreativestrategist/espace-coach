@@ -270,10 +270,12 @@ Ces points pourront faire l'objet d'un lot ultérieur.
 
 - ✅ Schéma Supabase (tables + RLS + bucket Storage) — [`supabase/schema.sql`](../supabase/schema.sql)
 - ✅ Design system partagé (admin + client)
-- ✅ Espace Admin : 8 pages, pixel-perfect
-- ✅ Espace Client : 8 pages, pixel-perfect
-- ✅ Authentification réelle (Supabase Auth) — connexion, déconnexion, changement de mot de passe, routes protégées, compte coach de démo
+- ✅ Espace Admin : 8 pages, pixel-perfect, branchées à Supabase (Dashboard, Clients + 6 onglets, Messagerie, Planning, Exercices, To-do list, Administratif, Réglages)
+- ✅ Espace Client : 8 pages, pixel-perfect, branchées à Supabase, chacune scopée au client connecté
+- ✅ Authentification réelle (Supabase Auth) — connexion, déconnexion, changement de mot de passe (coach et client), routes protégées par rôle
+- ✅ Création d'un client par le coach = compte de connexion réel provisionné automatiquement (mot de passe temporaire)
+- ✅ Upload de fichiers réel vers Supabase Storage (photos de suivi, PDF de plan alimentaire, médias d'exercices, justificatifs de facture)
 - ✅ Emails transactionnels (Resend) — notification au coach quand un client écrit un message
-- 🚧 Connexion des pages aux vraies données Supabase — fait pour Exercices (+ upload Storage réel) et To-do list ; Dashboard, Clients, Planning, Administratif et tout l'espace Client restent sur `src/lib/mock/` pour l'instant
-- ⬜ Deuxième parcours d'authentification pour les clients (seul le compte coach est seedé aujourd'hui)
-- ⬜ Upload réel pour les photos de suivi client et les PDF de plan alimentaire
+- ✅ Comptes de démonstration liés (coach + client) créés par le script SQL, pour tester les deux espaces immédiatement après l'installation
+- ⬜ Flux d'invitation par email pour les nouveaux clients (le mot de passe temporaire doit aujourd'hui être transmis à la main par le coach)
+- ⬜ Authentification à deux facteurs (réglage visuel présent, non branché)
