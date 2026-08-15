@@ -1,17 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageShell } from "@/components/shared/PageShell";
 import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
-import { upcomingAppointments, appointmentHistory, profile } from "@/lib/mock/client-data";
+import { upcomingAppointments as demoUpcoming, appointmentHistory as demoHistory, profile as demoProfile } from "@/lib/mock/client-data";
+import { useCurrentClient } from "@/lib/hooks/useCurrentClient";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/storage";
+
+const dayNamesLong = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const moisFR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+function typeLabel(t: "coaching" | "découverte" | "bilan"): string {
+  return t === "coaching" ? "Séance coaching" : t === "découverte" ? "RDV découverte" : "Bilan mensuel";
+}
+function formatApptDate(iso: string, heure: string, mode?: "visio" | "présentiel"): string {
+  const d = new Date(iso + "T00:00:00");
+  const base = `${dayNamesLong[d.getDay()]} ${d.getDate()} ${moisFR[d.getMonth()]} · ${heure.slice(0, 5)}`;
+  return mode ? `${base} · ${mode === "visio" ? "Visio" : "Présentiel"}` : base;
+}
+
+interface ApptRow {
+  title: string;
+  label: string;
+  status?: string;
+  badge?: string;
+}
 
 export default function ClientRendezVousPage() {
   const showToast = useToast();
+  const { client, loading: clientLoading } = useCurrentClient();
+  const [upcoming, setUpcoming] = useState<ApptRow[]>(isSupabaseConfigured ? [] : demoUpcoming);
+  const [history, setHistory] = useState<ApptRow[]>(isSupabaseConfigured ? [] : demoHistory);
+  const [loadingData, setLoadingData] = useState(isSupabaseConfigured);
   const [modalOpen, setModalOpen] = useState(false);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !client) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const today = new Date().toISOString().split("T")[0]!;
+      const [upcomingRes, historyRes] = await Promise.all([
+        supabase.from("appointments").select("*").eq("client_id", client.id).eq("statut", "prévue").gte("date", today).order("date").order("heure"),
+        supabase.from("appointments").select("*").eq("client_id", client.id).neq("statut", "prévue").order("date", { ascending: false }).limit(6),
+      ]);
+      if (cancelled) return;
+      setUpcoming((upcomingRes.data ?? []).map((a) => ({ title: typeLabel(a.type), label: formatApptDate(a.date, a.heure, a.mode) })));
+      setHistory(
+        (historyRes.data ?? []).map((a) => ({
+          title: typeLabel(a.type),
+          label: formatApptDate(a.date, a.heure),
+          status: a.statut === "réalisée" ? "Réalisée" : "Manquée",
+          badge: a.statut === "réalisée" ? "badge-green" : "badge-danger",
+        })),
+      );
+      setLoadingData(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
 
   function openModal() {
     setDate("");
@@ -20,14 +74,43 @@ export default function ClientRendezVousPage() {
     setModalOpen(true);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!isSupabaseConfigured) {
+      setModalOpen(false);
+      showToast("Demande envoyée à ton coach !");
+      return;
+    }
+
+    if (!client) return;
+    setSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("appointments").insert({
+      client_id: client.id,
+      coach_id: client.coachId,
+      date,
+      heure: time,
+      type: "coaching",
+      mode: "visio",
+      statut: "prévue",
+      notes: message.trim() || null,
+    });
+    setSaving(false);
+    if (error) {
+      showToast("Impossible d'envoyer la demande.");
+      return;
+    }
+    setUpcoming((prev) => [...prev, { title: typeLabel("coaching"), label: formatApptDate(date, time, "visio") }]);
     setModalOpen(false);
     showToast("Demande envoyée à ton coach !");
   }
 
+  const initials = isSupabaseConfigured ? client?.initials ?? "" : demoProfile.initials;
+  const loading = clientLoading || loadingData;
+
   return (
-    <PageShell title="Mes rendez-vous" subtitle="Tes séances passées et à venir" avatarInitials={profile.initials}>
+    <PageShell title="Mes rendez-vous" subtitle="Tes séances passées et à venir" avatarInitials={initials}>
       <div className="row-2">
         <div className="card">
           <div className="card-header">
@@ -39,7 +122,11 @@ export default function ClientRendezVousPage() {
             </button>
           </div>
           <div className="card-body">
-            {upcomingAppointments.map((a, i) => (
+            {loading && <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Chargement…</div>}
+            {!loading && upcoming.length === 0 && (
+              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Aucun rendez-vous prévu pour le moment.</div>
+            )}
+            {upcoming.map((a, i) => (
               <div className="list-item" key={i}>
                 <div className="avatar-sm">🏋️</div>
                 <div>
@@ -55,7 +142,10 @@ export default function ClientRendezVousPage() {
             <h3>Historique récent</h3>
           </div>
           <div className="card-body">
-            {appointmentHistory.map((a, i) => (
+            {!loading && history.length === 0 && (
+              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Aucun historique pour le moment.</div>
+            )}
+            {history.map((a, i) => (
               <div className="list-item" key={i}>
                 <div>
                   <div className="list-title">{a.title}</div>
@@ -96,8 +186,8 @@ export default function ClientRendezVousPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary">
-              Envoyer la demande
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Envoi…" : "Envoyer la demande"}
             </button>
           </div>
         </form>
