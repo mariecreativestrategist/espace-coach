@@ -46,19 +46,38 @@ export default function ClientRendezVousPage() {
     (async () => {
       const supabase = createClient();
       const today = new Date().toISOString().split("T")[0]!;
-      const [upcomingRes, historyRes] = await Promise.all([
-        supabase.from("appointments").select("*").eq("client_id", client.id).eq("statut", "prévue").gte("date", today).order("date").order("heure"),
-        supabase.from("appointments").select("*").eq("client_id", client.id).neq("statut", "prévue").order("date", { ascending: false }).limit(6),
-      ]);
+      // On récupère tous les RDV du client et on les répartit nous-mêmes par
+      // date (plutôt que deux requêtes filtrées par statut) : un RDV encore
+      // "prévue" mais dont la date est déjà passée doit quand même apparaître
+      // quelque part, sinon il disparaît silencieusement de l'espace client.
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("date", { ascending: true })
+        .order("heure", { ascending: true });
       if (cancelled) return;
-      setUpcoming((upcomingRes.data ?? []).map((a) => ({ title: typeLabel(a.type), label: formatApptDate(a.date, a.heure, a.mode) })));
+      if (error || !data) {
+        setLoadingData(false);
+        return;
+      }
+
+      setUpcoming(
+        data
+          .filter((a) => a.date >= today && a.statut === "prévue")
+          .map((a) => ({ title: typeLabel(a.type), label: formatApptDate(a.date, a.heure, a.mode) })),
+      );
       setHistory(
-        (historyRes.data ?? []).map((a) => ({
-          title: typeLabel(a.type),
-          label: formatApptDate(a.date, a.heure),
-          status: a.statut === "réalisée" ? "Réalisée" : "Manquée",
-          badge: a.statut === "réalisée" ? "badge-green" : "badge-danger",
-        })),
+        data
+          .filter((a) => a.date < today || a.statut !== "prévue")
+          .sort((a, b) => (a.date === b.date ? b.heure.localeCompare(a.heure) : b.date.localeCompare(a.date)))
+          .slice(0, 6)
+          .map((a) => ({
+            title: typeLabel(a.type),
+            label: formatApptDate(a.date, a.heure),
+            status: a.statut === "réalisée" ? "Réalisée" : a.statut === "manquée" ? "Manquée" : "En attente de confirmation",
+            badge: a.statut === "réalisée" ? "badge-green" : a.statut === "manquée" ? "badge-danger" : "badge-muted",
+          })),
       );
       setLoadingData(false);
     })();

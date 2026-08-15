@@ -70,7 +70,7 @@ export default function AdminPlanningPage() {
   const [rdvOpen, setRdvOpen] = useState(false);
   const [rdvDay, setRdvDay] = useState(0);
   const [rdvTime, setRdvTime] = useState("09:00");
-  const [rdvName, setRdvName] = useState("");
+  const [rdvClientId, setRdvClientId] = useState("");
   const [rdvType, setRdvType] = useState<"coaching" | "decouverte" | "bilan">("coaching");
   const [rdvMode, setRdvMode] = useState<"Visio" | "Présentiel">("Visio");
   const [rdvDuration, setRdvDuration] = useState("45 min");
@@ -144,7 +144,7 @@ export default function AdminPlanningPage() {
   function openRdvModal(day: number, slotIdx: number) {
     setRdvDay(day);
     setRdvTime(slotDefaults[slotIdx]!);
-    setRdvName("");
+    setRdvClientId("");
     setRdvType("coaching");
     setRdvMode("Visio");
     setRdvDuration("45 min");
@@ -154,7 +154,10 @@ export default function AdminPlanningPage() {
 
   async function submitRdv(e: React.FormEvent) {
     e.preventDefault();
-    const name = rdvName.trim();
+    if (!rdvClientId) return;
+    const name = isSupabaseConfigured
+      ? realClients.find((c) => c.id === rdvClientId)?.name ?? ""
+      : clientsSeed.find((c) => c.id === rdvClientId)?.name ?? "";
     if (!name) return;
     const hour = parseInt(rdvTime.split(":")[0]!, 10);
     const slotIdx = slotIndexForHour(hour);
@@ -173,11 +176,7 @@ export default function AdminPlanningPage() {
       return;
     }
 
-    const client = realClients.find((c) => c.name.toLowerCase() === name.toLowerCase());
-    if (!client || !coachId) {
-      showToast("Client introuvable — choisis un nom dans la liste suggérée.");
-      return;
-    }
+    if (!coachId) return;
 
     setSaving(true);
     const supabase = createClient();
@@ -187,7 +186,7 @@ export default function AdminPlanningPage() {
     const { data, error } = await supabase
       .from("appointments")
       .insert({
-        client_id: client.id,
+        client_id: rdvClientId,
         coach_id: coachId,
         date: isoDate(weekDates[rdvDay]!),
         heure: rdvTime,
@@ -332,20 +331,15 @@ export default function AdminPlanningPage() {
         <form onSubmit={submitRdv}>
           <div className="modal-body">
             <div className="form-group">
-              <label>Nom du client</label>
-              <input
-                type="text"
-                list="clientNamesList"
-                placeholder="Ex : Lisa Carion"
-                required
-                value={rdvName}
-                onChange={(e) => setRdvName(e.target.value)}
-              />
-              <datalist id="clientNamesList">
+              <label>Client</label>
+              <select required value={rdvClientId} onChange={(e) => setRdvClientId(e.target.value)}>
+                <option value="">— Choisir un client —</option>
                 {(isSupabaseConfigured ? realClients : clientsSeed.map((c) => ({ id: c.id, name: c.name }))).map((c) => (
-                  <option value={c.name} key={c.id} />
+                  <option value={c.id} key={c.id}>
+                    {c.name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
             <div className="form-grid">
               <div className="form-group">

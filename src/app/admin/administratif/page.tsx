@@ -45,7 +45,7 @@ export default function AdminAdministratifPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [client, setClient] = useState("");
+  const [clientId, setClientId] = useState("");
   const [service, setService] = useState(services[0]!);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
@@ -106,7 +106,7 @@ export default function AdminAdministratifPage() {
   const late = invoices.filter((i) => i.status === "retard").reduce((s, i) => s + i.amount, 0);
 
   function openModal() {
-    setClient("");
+    setClientId("");
     setService(services[0]!);
     setAmount("");
     setDate(new Date().toISOString().split("T")[0]!);
@@ -119,15 +119,16 @@ export default function AdminAdministratifPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!client.trim() || !amount || !date) return;
+    if (!clientId || !amount || !date) return;
 
     if (!isSupabaseConfigured) {
+      const name = clientsSeed.find((c) => c.id === clientId)?.name ?? "";
       let attachment: Invoice["attachment"] = null;
       if (attachType === "file" && attachFile) attachment = { type: "file", label: attachFile.name };
       else if (attachType === "link" && attachLink.trim()) attachment = { type: "link", label: attachLink.trim() };
       const newInvoice: Invoice = {
         id: `0${counter + 1}`,
-        client: client.trim(),
+        client: name,
         service,
         date: formatDateFR(date),
         amount: parseFloat(amount),
@@ -141,11 +142,8 @@ export default function AdminAdministratifPage() {
       return;
     }
 
-    const matchedClient = realClients.find((c) => c.name.toLowerCase() === client.trim().toLowerCase());
-    if (!matchedClient || !coachId) {
-      showToast("Client introuvable — choisis un nom dans la liste suggérée.");
-      return;
-    }
+    const matchedClient = realClients.find((c) => c.id === clientId);
+    if (!matchedClient || !coachId) return;
 
     setSaving(true);
     const supabase = createClient();
@@ -311,19 +309,14 @@ export default function AdminAdministratifPage() {
           <div className="modal-body">
             <div className="form-group">
               <label>Client</label>
-              <input
-                type="text"
-                list="clientNamesListFacture"
-                placeholder="Ex : Lisa Carion"
-                required
-                value={client}
-                onChange={(e) => setClient(e.target.value)}
-              />
-              <datalist id="clientNamesListFacture">
+              <select required value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <option value="">— Choisir un client —</option>
                 {(isSupabaseConfigured ? realClients : clientsSeed.map((c) => ({ id: c.id, name: c.name }))).map((c) => (
-                  <option value={c.name} key={c.id} />
+                  <option value={c.id} key={c.id}>
+                    {c.name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
             <div className="form-group">
               <label>Prestation</label>
